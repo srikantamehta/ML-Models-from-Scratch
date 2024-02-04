@@ -1,13 +1,16 @@
 import pandas as pd
 
-class DataLoader:
-    def __init__(self, config):
-        self.file_path = config['file_path']
-        self.separator = config['separator']
-        self.column_names = config['column_names']
-        # Other config parameters can be initialized here if needed
+def load_data(config):
+    """
+    Load data from a file specified in the config.
 
-    def load_data(self):
-        # Load the data with the specified column names
-        data = pd.read_csv(self.file_path, sep=self.separator, names=self.column_names, header=None)
-        return data
+    :param config: Configuration dictionary for the dataset.
+    :return: Loaded DataFrame.
+    """
+    file_path = config['file_path']
+    separator = config['separator']
+    column_names = config['column_names']
+
+    data = pd.read_csv(file_path, sep=separator, names=column_names, header=None)
+
+    return data
