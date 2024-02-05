@@ -16,11 +16,15 @@ class DataProcessor:
         separator = self.config['separator']
         column_names = self.config['column_names']
         missing_value_representation = self.config['missing_values']
+        has_header = self.config.get('has_header', False)  # Default to False if not specified
 
-        data = pd.read_csv(file_path, sep=separator, names=column_names, header=None, na_values=missing_value_representation)
-       
+        if has_header:
+            data = pd.read_csv(file_path, sep=separator, na_values=missing_value_representation)
+        else:
+            data = pd.read_csv(file_path, sep=separator, names=column_names, header=None, na_values=missing_value_representation)
+        
         return data
-
+    
     def impute_missing_values(self,data):
         data = data.copy()
         for column in data.columns:
