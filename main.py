@@ -15,6 +15,6 @@ data_4 = data_processor.discretize_feature_equal_width(data_3,'Diameter',bins=10
 
 print(data_4)
 
-data_5 = data_processor.discretize_feature_equal_frequency(data_3,'Diameter',bins=100)
+data_5 = data_processor.discretize_feature_equal_frequency(data_3,'Diameter',bins=5)
 
 print(data_5)

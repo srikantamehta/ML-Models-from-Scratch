@@ -15,14 +15,7 @@ albalone_config = {
     'numeric_features': [
         'Length', 'Diameter', 'Height', 'Whole weight',
         'Shucked weight', 'Viscera weight', 'Shell weight'
-    ],
-    'features_to_encode': ['Sex'],  # For one-hot encoding
-    'features_to_discretize': [],  # If any, like ['Age']
-    'z_score_standardization': True,  # Whether to apply z-score standardization
-    'cross_validation': {
-        'method': '5x2',  # or 'k-fold'
-        'k': 10,  # if using k-fold
-    }
+    ]
 }
 
 
@@ -35,7 +28,6 @@ breast_cancer_config = {
         'Uniformity of Cell Shape', 'Marginal Adhesion', 'Single Epithelial Cell Size',
         'Bare Nuclei', 'Bland Chromatin', 'Normal Nucleoli', 'Mitoses', 'Class'
     ],
-    'target_column': 'Class',
     'missing_values': '?',  # Represented by '?'
     'nominal_features': ['Sample code number', 'Bare Nuclei'],  
     'ordinal_features': {},  # If any, like ['Size']
@@ -43,13 +35,6 @@ breast_cancer_config = {
         'Clump Thickness', 'Uniformity of Cell Size', 'Uniformity of Cell Shape',
         'Marginal Adhesion', 'Single Epithelial Cell Size', 'Bland Chromatin',
         'Normal Nucleoli', 'Mitoses'
-    ],
-    'features_to_encode': [],  # For one-hot encoding, if any
-    'features_to_discretize': [],  # If any, like ['Age']
-    'z_score_standardization': True,  # Whether to apply z-score standardization
-    'cross_validation': {
-        'method': '5x2',  # or 'k-fold'
-        'k': 10,  # if using k-fold
-    }
+    ]
 }
 

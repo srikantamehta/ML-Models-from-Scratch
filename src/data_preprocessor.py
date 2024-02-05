@@ -100,3 +100,31 @@ class DataProcessor:
                 print(f"An error occurred during discretization of '{feature}': {e}. This may be due to too many bins for the number of unique values.")
                 
         return data
+    
+    def standardize_data(self, train_data, data, feature=None):
+        """
+        Apply z-score standardization to a specified numeric feature of the data based on statistics from the training data.
+
+        :param train_data: The DataFrame representing the training data.
+        :param data: The DataFrame to be standardized (can be test data or any other data).
+        :param feature: The feature to be standardized.
+        :return: The standardized DataFrame.
+        """
+        train_data = train_data.copy()
+        data = data.copy()
+        
+        if feature is None or feature not in train_data.columns or feature not in data.columns:
+            print(f"Feature '{feature}' not found in the training or the data set.")
+            return data
+        
+        # Compute mean and std from the training data
+        mean = train_data[feature].mean()
+        std = train_data[feature].std()
+
+        if std != 0:
+            # Standardize the data
+            data[feature] = (data[feature] - mean) / std
+        else:
+            print(f"Standard deviation for feature '{feature}' is zero in the training set. Skipping standardization for this feature.")
+
+        return data
