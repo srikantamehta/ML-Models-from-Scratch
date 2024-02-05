@@ -28,6 +28,7 @@ breast_cancer_config = {
         'Uniformity of Cell Shape', 'Marginal Adhesion', 'Single Epithelial Cell Size',
         'Bare Nuclei', 'Bland Chromatin', 'Normal Nucleoli', 'Mitoses', 'Class'
     ],
+    'target_column': 'Class',
     'missing_values': '?',  # Represented by '?'
     'nominal_features': ['Sample code number', 'Bare Nuclei'],  
     'ordinal_features': {},  # If any, like ['Size']

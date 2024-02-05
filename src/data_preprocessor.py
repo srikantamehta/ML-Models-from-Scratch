@@ -69,62 +69,71 @@ class DataProcessor:
         
         return data
     
-    def discretize_feature_equal_width(self, data, feature, bins):
+    def discretize_feature_equal_width(self, data, features, bins):
         """
-        Discretize a real-valued feature into equal-width bins.
+        Discretize real-valued features into equal-width bins.
 
         :param data: The DataFrame to process.
-        :param feature: The feature to discretize.
+        :param features: The list of features to discretize.
         :param bins: The number of bins.
-        :return: The DataFrame with the feature discretized.
+        :return: The DataFrame with the features discretized.
         """
         data = data.copy()
-        if feature in data.columns:
-            data[feature] = pd.cut(data[feature], bins, labels=np.arange(bins), right=False)
+        for feature in features:
+            if feature in data.columns:
+                data[feature] = pd.cut(data[feature], bins, labels=np.arange(bins), right=False)
         return data
 
-    def discretize_feature_equal_frequency(self, data, feature, bins):
+    def discretize_feature_equal_frequency(self, data, features, bins):
         """
-        Discretize a real-valued feature into equal-frequency bins.
+        Discretize real-valued features into equal-frequency bins.
 
         :param data: The DataFrame to process.
-        :param feature: The feature to discretize.
+        :param features: The list of features to discretize.
         :param bins: The number of bins.
-        :return: The DataFrame with the feature discretized.
+        :return: The DataFrame with the features discretized.
         """
         data = data.copy()
-        if feature in data.columns:
-            try:
-                data[feature] = pd.qcut(data[feature], q=bins, labels=np.arange(bins), duplicates='drop')
-            except ValueError as e:
-                print(f"An error occurred during discretization of '{feature}': {e}. This may be due to too many bins for the number of unique values.")
-                
+        for feature in features:
+            if feature in data.columns:
+                try:
+                    data[feature] = pd.qcut(data[feature], q=bins, labels=np.arange(bins), duplicates='drop')
+                except ValueError as e:
+                    print(f"An error occurred during discretization of '{feature}': {e}. This may be due to too many bins for the number of unique values.")
         return data
     
-    def standardize_data(self, train_data, data, feature=None):
+    def standardize_data(self, train_data, data, features=None):
         """
-        Apply z-score standardization to a specified numeric feature of the data based on statistics from the training data.
+        Apply z-score standardization to specified numeric features of the data based on statistics from the training data.
 
         :param train_data: The DataFrame representing the training data.
         :param data: The DataFrame to be standardized (can be test data or any other data).
-        :param feature: The feature to be standardized.
+        :param features: The feature(s) to be standardized. Can be a list of feature names or a single feature name.
         :return: The standardized DataFrame.
         """
         train_data = train_data.copy()
         data = data.copy()
         
-        if feature is None or feature not in train_data.columns or feature not in data.columns:
-            print(f"Feature '{feature}' not found in the training or the data set.")
+        if features is None:
+            print("No feature(s) specified for standardization.")
             return data
         
-        # Compute mean and std from the training data
-        mean = train_data[feature].mean()
-        std = train_data[feature].std()
+        if not isinstance(features, list):
+            features = [features]  # Convert a single feature to a list for consistent processing
 
-        if std != 0:
-            # Standardize the data
-            data[feature] = (data[feature] - mean) / std
-        else:
-            print(f"Standard deviation for feature '{feature}' is zero in the training set. Skipping standardization for this feature.")
+        for feature in features:
+            if feature not in train_data.columns or feature not in data.columns:
+                print(f"Feature '{feature}' not found in the training or the data set.")
+                continue  # Skip this feature and continue with the next
+            
+            # Compute mean and std from the training data
+            mean = train_data[feature].mean()
+            std = train_data[feature].std()
+
+            if std != 0:
+                # Standardize the data
+                data[feature] = (data[feature] - mean) / std
+            else:
+                print(f"Standard deviation for feature '{feature}' is zero in the training set. Skipping standardization for this feature.")
 
         return data
