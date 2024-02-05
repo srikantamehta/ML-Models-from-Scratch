@@ -51,20 +51,3 @@ class CrossValidation:
             yield train_data, test_data
             yield test_data, train_data  # Swap train and test for the second iteration of each 2-fold cross-validation
 
-    def save_results_to_file(self, results, filename):
-        if not results:
-            print("No results to save.")
-            return
-        
-        with open(filename, 'w') as file:
-            print(f"Saving results to {filename}")
-            for result in results:
-                train_data, test_data = result
-                # Check the contents of train_data and test_data
-                print(f"Train indices:\n{train_data.index.values}")
-                print(f"Test indices:\n{test_data.index.values}")
-                
-                file.write(f'Train indices:\n{train_data.index.values}\n')
-                file.write(f'Test indices:\n{test_data.index.values}\n\n')
-        
-        print(f'Results saved to {filename}')

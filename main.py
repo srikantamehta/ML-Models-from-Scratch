@@ -1,9 +1,9 @@
 from src.data_preprocessor import DataProcessor
 from src.cross_validation import CrossValidation
-from data_configs.configs import albalone_config, breast_cancer_config, car_config, forest_fires_config, house_votes_84_config
+from data_configs.configs import *
 
-data_processor = DataProcessor(config=house_votes_84_config)
-cross_validator = CrossValidation(config=house_votes_84_config)
+data_processor = DataProcessor(config=machine_config)
+cross_validator = CrossValidation(config=machine_config)
 
 raw_data = data_processor.load_data()
 
