@@ -1,5 +1,6 @@
 from src.data_preprocessor import DataProcessor
 from src.cross_validation import CrossValidation
+from src.evaluation import Evaluation
 from models.null_model import NullModelClassification, NullModelRegression
 from data_configs.configs import *
 from sklearn.model_selection import train_test_split, StratifiedKFold
@@ -42,4 +43,8 @@ classification_result = classification_nullmodel.naive_classifier(data_3)
 
 data_3['Predicted Class'] = classification_result
 
-print(data_3)
+# print(data_3)
+
+score = Evaluation.zero_one_loss(data_3[config['target_column']],data_3['Predicted Class'])
+
+print(score)
