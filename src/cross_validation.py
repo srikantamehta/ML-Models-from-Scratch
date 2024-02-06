@@ -1,5 +1,4 @@
-from sklearn.model_selection import train_test_split, StratifiedKFold
-import os
+from sklearn.model_selection import train_test_split, RepeatedStratifiedKFold
 
 class CrossValidation:
 
@@ -19,35 +18,24 @@ class CrossValidation:
         train_data, val_data = train_test_split(data, test_size=val_size, random_state=random_state)
         return train_data, val_data
     
-    def k_fold_cross_validation(self, data, k=10, random_state=None):
+    def cross_validation(self, data, n_splits=10, n_repeats=1, random_state=None):
         """
-        Generate stratified k-fold cross-validation datasets.
+        Perform stratified k-fold cross-validation, supporting repeated splits.
 
         :param data: The DataFrame to be used for cross-validation.
-        :param k: The number of folds.
+        :param n_splits: The number of folds (default is 10 for 10-fold cross-validation).
+        :param n_repeats: The number of repetitions for cross-validation (default is 1).
+                          Set to 5 for 5x2 cross-validation with n_splits=2.
         :param random_state: The seed used by the random number generator (for reproducibility).
-        :return: A generator yielding train/test datasets for each fold.
+        :return: A generator yielding train/test datasets for each fold and repeat.
         """
         data = data.copy()
         X = data.drop(columns=[self.config['target_column']])
         y = data[self.config['target_column']]
 
-        skf = StratifiedKFold(n_splits=k, shuffle=True, random_state=random_state)
-        for train_index, test_index in skf.split(X, y):
+        rskf = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats, random_state=random_state)
+        for i, (train_index, test_index) in enumerate(rskf.split(X, y)):
+            # print(f"Fold {i}:")
+            # print(f"  Train indices: {train_index}")
+            # print(f"  Test indices: {test_index}")
             yield data.iloc[train_index], data.iloc[test_index]
-
-    def k_2_cross_validation(self, data, k=5, random_state=None):
-        """
-        Perform 5x2 cross-validation.
-
-        :param data: The DataFrame to be used for cross-validation.
-        :param k: The number of times to perform 2-fold cross-validation (usually 5 for 5x2 cross-validation).
-        :param random_state: The seed used by the random number generator (for reproducibility).
-        :return: A generator yielding train/test datasets for each of the 2-fold cross-validations, repeated k times.
-        """
-        for i in range(k):
-            # Randomly partition the data into 50% each for train and test, then swap them in the second iteration
-            train_data, test_data = train_test_split(data, test_size=0.5, stratify=data[self.config['target_column']], random_state=random_state)
-            yield train_data, test_data
-            yield test_data, train_data  # Swap train and test for the second iteration of each 2-fold cross-validation
-
