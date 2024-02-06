@@ -4,7 +4,6 @@ import numpy as np
 class DataProcessor:
     def __init__(self, config):
         self.config = config
-        
 
     def load_data(self):
         """
@@ -26,6 +25,14 @@ class DataProcessor:
         return data
     
     def impute_missing_values(self,data):
+        """
+        Impute missing values in the DataFrame. Numeric features are filled with the mean of the column.
+        Nominal features are filled with the mode (most frequent value) of the column.
+
+        :param data: pandas DataFrame - The DataFrame to process.
+        :return: pandas DataFrame - The DataFrame with missing values imputed.
+        """      
+        
         data = data.copy()
         for column in data.columns:
             # Check if the column is numerical or nominal
