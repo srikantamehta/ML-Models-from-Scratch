@@ -1,4 +1,4 @@
-from sklearn.model_selection import train_test_split, RepeatedStratifiedKFold
+from sklearn.model_selection import train_test_split, RepeatedStratifiedKFold, RepeatedKFold
 
 class CrossValidation:
 
@@ -18,7 +18,7 @@ class CrossValidation:
         train_data, val_data = train_test_split(data, test_size=val_size, random_state=random_state)
         return train_data, val_data
     
-    def cross_validation(self, data, n_splits=10, n_repeats=1, random_state=None):
+    def cross_validation(self, data, n_splits=10, n_repeats=1, random_state=None, stratify=True):
         """
         Perform stratified k-fold cross-validation, supporting repeated splits.
 
@@ -33,8 +33,12 @@ class CrossValidation:
         X = data.drop(columns=[self.config['target_column']])
         y = data[self.config['target_column']]
 
-        rskf = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats, random_state=random_state)
-        for i, (train_index, test_index) in enumerate(rskf.split(X, y)):
+        if stratify:
+            cv = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats, random_state=random_state)
+        else:
+            cv = RepeatedKFold(n_splits=n_splits, n_repeats=n_repeats, random_state=random_state)
+
+        for i, (train_index, test_index) in enumerate(cv.split(X, y if stratify else None)):
             # print(f"Fold {i}:")
             # print(f"  Train indices: {train_index}")
             # print(f"  Test indices: {test_index}")

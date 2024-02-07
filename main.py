@@ -5,7 +5,7 @@ from models.null_model import NullModelClassification, NullModelRegression
 from data_configs.configs import *
 from sklearn.model_selection import train_test_split, StratifiedKFold
 
-config = car_config
+config = albalone_config
 
 data_processor = DataProcessor(config=config)
 cross_validator = CrossValidation(config=config)
@@ -28,23 +28,30 @@ data_3 = data_processor.encode_ordinal_features(data_2)
 
 # print(data_3)
 
-# data_train_80, data_val_20 = cross_validator.random_partition(data_3,0.2)
+data_train_80, data_val_20 = cross_validator.random_partition(data_3,0.2)
 
-# i=0
-# for data_fold_train, data_fold_test in cross_validator.cross_validation(data_train_80, n_splits=2, n_repeats=5, random_state=42):
+i=0
+for data_fold_train, data_fold_test in cross_validator.cross_validation(data_train_80, n_splits=2, n_repeats=5, random_state=None,stratify=False):
 
-#     # Print class distribution
-#     print(f"Train fold class distribution:\n{y_train.value_counts(normalize=True)}")
-#     print(f"Test fold class distribution:\n{y_test.value_counts(normalize=True)}\n")
+    # Extracting the target column for the train and test folds
+    y_train = data_fold_train[config['target_column']]
+    y_test = data_fold_test[config['target_column']]
 
-classification_result = classification_nullmodel.naive_classifier(data_3)
+    # Print run number
+    print(f"Run {i}")
+    i += 1
 
-# print(classification_result)
+    # Print class distribution
+    print(f"Train fold class distribution:\n{y_train.value_counts(normalize=True)}")
+    print(f"Test fold class distribution:\n{y_test.value_counts(normalize=True)}\n")
+# classification_result = classification_nullmodel.naive_classifier(data_3)
 
-data_3['Predicted Class'] = classification_result
+# # print(classification_result)
 
-# print(data_3)
+# data_3['Predicted Class'] = classification_result
 
-score = Evaluation.zero_one_loss(data_3[config['target_column']],data_3['Predicted Class'])
+# # print(data_3)
 
-print(score)
+# score = Evaluation.zero_one_loss(data_3[config['target_column']],data_3['Predicted Class'])
+
+# print(score)
