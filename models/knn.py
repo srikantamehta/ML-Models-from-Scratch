@@ -3,41 +3,38 @@ import numpy as np
 
 class KNN:
 
-    def __init__(self, data, config):
+    def __init__(self, config, test_set, train_set):
         self.config = config
-        self.data = data
+        self.test_set = test_set
+        self.train_set = train_set
 
-    def calc_euclidian_distance(self, X, Y):
-        # Ensure that X and Y are numpy arrays for element-wise operations
-        X = np.array(X)
-        Y = np.array(Y)
-        sum_squared_diff = np.sum((X - Y) ** 2)
-        distance = np.sqrt(sum_squared_diff)
-        return distance
+    def calc_euclidian_distance(self, x1, x2):
+        distance = 0
+        for i in range(len(x1)):
+            distance += (x1[i]-x2[i]) ** 2
+        return distance ** 0.5
 
-    def k_nearest_neighbors(self, X, k):
+    def k_nearest_neighbors(self, test_point, k):
+        
+        train = self.train_set.drop(self.config['target_column'], axis=1)
+
         distances = []
+        for index in range(len(train)):
+            distances.append(self.calc_euclidian_distance(test_point, train.iloc[index]))
 
-        for index, row in self.data.iterrows():
-            # Drop the target column from the row and convert to numpy array
-            point = row.drop(labels=[self.config['target_column']]).values
-            # Ensure X is in the correct format (numpy array)
-            X_array = np.array(X.drop(labels=[self.config['target_column']]).values)
-            dist = self.calc_euclidian_distance(X_array, point)
-            distances.append((dist, index))
+        sorted_distances = sorted(distances)
+        k_nearest_neighbors = sorted_distances[:k]
+        
+        return k_nearest_neighbors
 
-        distances.sort(key=lambda x: x[0])
-        nearest_neighbors = distances[:k]
+    def knn_classifier(self, test_set, k):
+        
+        test_set_drop_class = test_set.drop(self.config['target_column'], axis=1)
 
-        return [index for _, index in nearest_neighbors]
+        for index in range(len(test_set_drop_class)):
+            k_nearest_neighbors = self.k_nearest_neighbors(test_set_drop_class.iloc[index], k)            
 
-    def knn_classifier(self, k):
-        # Iterate through each row of the DataFrame correctly
-        for index, row in self.data.iterrows():
-            # Call k_nearest_neighbors with the row for classification
-            # Be sure to pass the row as a Series, not as part of a DataFrame
-            neighbors = self.k_nearest_neighbors(row, k)
-            print(neighbors)  # Or handle the neighbors list as needed
+        pass
 
     def knn_regression(self):
         pass
