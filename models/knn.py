@@ -1,17 +1,13 @@
-import math
 import numpy as np
+import pandas as pd
 
 class KNN:
     """
-    An implementation of the K-Nearest Neighbors algorithm for classification.
-
-    Attributes:
-        config (dict): Configuration settings, including the name of the target column.
+    An optimized implementation of the K-Nearest Neighbors algorithm for both classification and regression.
     """
-
     def __init__(self, config):
         """
-        Initializes the KNN classifier with the given configuration.
+        Initializes the KNN model with configuration settings.
 
         Parameters:
             config (dict): Configuration settings, including the name of the target column.
@@ -29,8 +25,9 @@ class KNN:
         Returns:
             float: The Euclidean distance between the two points.
         """
-        distance = sum((x1_val - x2_val) ** 2 for x1_val, x2_val in zip(x1, x2))
-        return distance ** 0.5
+        x1 = np.array(x1)
+        x2 = np.array(x2)
+        return np.sqrt(np.sum((x1 - x2) ** 2))
 
     def k_nearest_neighbors(self, test_point, train_set, k):
         """
@@ -42,15 +39,19 @@ class KNN:
             k (int): The number of nearest neighbors to find.
 
         Returns:
-            list of tuples: A list of tuples containing the distance to the test point and the class of each of the k nearest neighbors.
+            list of tuples: A list containing the distance to the test point and the target value of each of the k nearest neighbors.
         """
         train_set_features = train_set.drop(columns=[self.config['target_column']])
+        train_set_target = train_set[self.config['target_column']]
 
-        distances = [(self.calc_euclidian_distance(test_point, train_set_features.iloc[index]), 
-                     train_set.iloc[index][self.config['target_column']])
-                     for index in range(len(train_set_features))]
-        k_nearest_neighbors = sorted(distances, key=lambda x: x[0])[:k]
-        return k_nearest_neighbors
+        # Calculate distances from the test point to all training points
+        distances = [self.calc_euclidian_distance(test_point, train_set_features.iloc[index]) for index in range(len(train_set_features))]
+
+        # Get indices of the k smallest distances
+        nearest_indices = np.argsort(distances)[:k]
+
+        # Return the k nearest neighbors (distance and target value)
+        return [(distances[i], train_set_target.iloc[i]) for i in nearest_indices]
 
     def knn_classifier(self, test_set, train_set, k):
         """
@@ -68,33 +69,41 @@ class KNN:
         predictions = []
 
         for index, row in test_set_features.iterrows():
-            neighbors = self.k_nearest_neighbors(row, train_set, k)
+            neighbors = self.k_nearest_neighbors(row.values, train_set, k)
             classes = [neighbor[1] for neighbor in neighbors]
-            predicted_class = max(set(classes), key=classes.count)  
+            predicted_class = max(set(classes), key=classes.count)
             predictions.append(predicted_class)
-        
+
         test_set_with_predictions = test_set.copy()
         test_set_with_predictions['Predicted Class'] = predictions
         return test_set_with_predictions
 
     def knn_regression(self, test_set, train_set, k, gamma):
         """
-        Placeholder for KNN regression implementation.
+        Performs KNN regression on a given test set using a Gaussian kernel for weighting.
+
+        Parameters:
+            test_set (DataFrame): The test dataset.
+            train_set (DataFrame): The training dataset.
+            k (int): The number of nearest neighbors to consider.
+            gamma (float): The bandwidth parameter for the Gaussian kernel.
+
+        Returns:
+            DataFrame: The test set with an additional column for the predicted value.
         """
         test_set_features = test_set.drop(columns=[self.config['target_column']])
         predictions = []
 
         for index, row in test_set_features.iterrows():
-
-            neighbors = self.k_nearest_neighbors(row, train_set, k)
-            weights = [math.exp(-gamma*(neighbor[0]**2)) for neighbor in neighbors]
+            neighbors = self.k_nearest_neighbors(row.values, train_set, k)
+            weights = [np.exp(-gamma * (dist ** 2)) for dist, _ in neighbors]
             total_weight = sum(weights)
 
             if total_weight > 0:
-                weighted_sum = sum(weight * neighbor[1] for weight, neighbor in zip(weights, neighbors))
+                weighted_sum = sum(weight * target for (dist, target), weight in zip(neighbors, weights))
                 prediction = weighted_sum / total_weight
             else:
-                prediction = np.mean([neighbor[1] for neighbor in neighbors])
+                prediction = np.mean([target for _, target in neighbors])
 
             predictions.append(prediction)
 
