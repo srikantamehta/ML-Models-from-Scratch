@@ -1,3 +1,6 @@
+import math
+import numpy as np
+
 class KNN:
     """
     An implementation of the K-Nearest Neighbors algorithm for classification.
@@ -74,8 +77,28 @@ class KNN:
         test_set_with_predictions['Predicted Class'] = predictions
         return test_set_with_predictions
 
-    def knn_regression(self):
+    def knn_regression(self, test_set, train_set, k, gamma):
         """
         Placeholder for KNN regression implementation.
         """
-        pass
+        test_set_features = test_set.drop(columns=[self.config['target_column']])
+        predictions = []
+
+        for index, row in test_set_features.iterrows():
+
+            neighbors = self.k_nearest_neighbors(row, train_set, k)
+            weights = [math.exp(-gamma*(neighbor[0]**2)) for neighbor in neighbors]
+            total_weight = sum(weights)
+
+            if total_weight > 0:
+                weighted_sum = sum(weight * neighbor[1] for weight, neighbor in zip(weights, neighbors))
+                prediction = weighted_sum / total_weight
+            else:
+                prediction = np.mean([neighbor[1] for neighbor in neighbors])
+
+            predictions.append(prediction)
+
+        test_set_with_predictions = test_set.copy()
+        test_set_with_predictions['Predicted Value'] = predictions
+
+        return test_set_with_predictions
