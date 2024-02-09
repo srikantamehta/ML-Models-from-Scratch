@@ -4,9 +4,10 @@ from src.evaluation import Evaluation
 from models.knn import KNN
 from models.null_model import NullModelClassification, NullModelRegression
 from data_configs.configs import *
+import statistics
 
 
-config = albalone_config
+config = house_votes_84_config
 
 data_processor = DataProcessor(config=config)
 cross_validator = CrossValidation(config=config)
@@ -16,15 +17,9 @@ regression_nullmodel = NullModelRegression(config=config)
 
 raw_data = data_processor.load_data()
 
-# print(raw_data)
-
 data_1 = data_processor.impute_missing_values(raw_data)
 
-# print(data_1)
-
 data_2 = data_processor.encode_nominal_features(data_1)
-
-# print(data_2)
 
 data_3 = data_processor.encode_ordinal_features(data_2)
 
@@ -32,13 +27,10 @@ data_train, data_test = cross_validator.random_partition(data_3)
 
 knn_model = KNN(config, data_test, data_train)
 
-data_test_drop = data_test.drop(config['target_column'], axis=1)
+test_predictions = knn_model.knn_classifier(data_test, 10)
 
-distances = knn_model.k_nearest_neighbors(data_test_drop.iloc[1], 2)
+print(test_predictions)
 
-print(distances)
+eval_scores = Evaluation().zero_one_loss(test_predictions[config['target_column']],test_predictions['Predicted Class'])
 
-
-
-
-
+print(eval_scores)
