@@ -30,11 +30,11 @@ breast_cancer_config = {
     'has_header': False,
     'target_column': 'Class',
     'missing_values': '?',  
-    'nominal_features': ['Sample code number', 'Bare Nuclei'],  
+    'nominal_features': ['Sample code number'],  
     'ordinal_features': {},  
     'numeric_features': [
         'Clump Thickness', 'Uniformity of Cell Size', 'Uniformity of Cell Shape',
-        'Marginal Adhesion', 'Single Epithelial Cell Size', 'Bland Chromatin',
+        'Marginal Adhesion', 'Single Epithelial Cell Size', 'Bare Nuclei', 'Bland Chromatin',
         'Normal Nucleoli', 'Mitoses'
     ]
 }
