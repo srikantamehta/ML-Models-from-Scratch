@@ -4,34 +4,24 @@ class KNN:
 
     Attributes:
         config (dict): Configuration settings, including the name of the target column.
-        test_set (DataFrame): The test dataset.
-        train_set (DataFrame): The training dataset.
-        train_set_drop (DataFrame): The training dataset with the target column dropped.
-        length_train_set_drop (int): The number of instances in the training dataset after dropping the target column.
     """
 
-    def __init__(self, config, test_set, train_set):
+    def __init__(self, config):
         """
-        Initializes the KNN classifier with the given configuration, test set, and training set.
+        Initializes the KNN classifier with the given configuration.
 
         Parameters:
             config (dict): Configuration settings, including the name of the target column.
-            test_set (DataFrame): The test dataset.
-            train_set (DataFrame): The training dataset.
         """
         self.config = config
-        self.test_set = test_set
-        self.train_set = train_set
-        self.train_set_drop = self.train_set.drop(columns=[self.config['target_column']])
-        self.length_train_set_drop = len(self.train_set_drop)
 
     def calc_euclidian_distance(self, x1, x2):
         """
         Calculates the Euclidean distance between two points.
 
         Parameters:
-            x1: The first point.
-            x2: The second point.
+            x1 (array-like): The first point.
+            x2 (array-like): The second point.
 
         Returns:
             float: The Euclidean distance between the two points.
@@ -39,29 +29,33 @@ class KNN:
         distance = sum((x1_val - x2_val) ** 2 for x1_val, x2_val in zip(x1, x2))
         return distance ** 0.5
 
-    def k_nearest_neighbors(self, test_point, k):
+    def k_nearest_neighbors(self, test_point, train_set, k):
         """
         Finds the k nearest neighbors of a given test point.
 
         Parameters:
-            test_point: The test point.
+            test_point (array-like): The test point.
+            train_set (DataFrame): The training dataset.
             k (int): The number of nearest neighbors to find.
 
         Returns:
             list of tuples: A list of tuples containing the distance to the test point and the class of each of the k nearest neighbors.
         """
-        distances = [(self.calc_euclidian_distance(test_point, self.train_set_drop.iloc[index]), 
-                      self.train_set.iloc[index][self.config['target_column']])
-                     for index in range(self.length_train_set_drop)]
+        train_set_features = train_set.drop(columns=[self.config['target_column']])
+
+        distances = [(self.calc_euclidian_distance(test_point, train_set_features.iloc[index]), 
+                     train_set.iloc[index][self.config['target_column']])
+                     for index in range(len(train_set_features))]
         k_nearest_neighbors = sorted(distances, key=lambda x: x[0])[:k]
         return k_nearest_neighbors
 
-    def knn_classifier(self, test_set, k):
+    def knn_classifier(self, test_set, train_set, k):
         """
         Classifies each instance in the test set based on the k nearest neighbors algorithm.
 
         Parameters:
             test_set (DataFrame): The test dataset.
+            train_set (DataFrame): The training dataset.
             k (int): The number of nearest neighbors to use for classification.
 
         Returns:
@@ -71,7 +65,7 @@ class KNN:
         predictions = []
 
         for index, row in test_set_features.iterrows():
-            neighbors = self.k_nearest_neighbors(row, k)
+            neighbors = self.k_nearest_neighbors(row, train_set, k)
             classes = [neighbor[1] for neighbor in neighbors]
             predicted_class = max(set(classes), key=classes.count)  
             predictions.append(predicted_class)
