@@ -39,10 +39,8 @@ class CrossValidation:
             cv = RepeatedKFold(n_splits=n_splits, n_repeats=n_repeats, random_state=random_state)
 
         for i, (train_index, test_index) in enumerate(cv.split(X, y if stratify else None)):
-            # print(f"Fold {i}:")
-            # print(f"  Train indices: {train_index}")
-            # print(f"  Test indices: {test_index}")
             yield data.iloc[train_index], data.iloc[test_index]
+
 
     def hyperparameter_tuning(self, data, all_hyperparameters, train_model, test_model, calculate_average_performance, pick_best_hyperparameters, val_size=0.2, n_splits=2, n_repeats=5, random_state=42):
         """
