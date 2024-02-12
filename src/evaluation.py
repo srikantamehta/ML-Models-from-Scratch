@@ -1,3 +1,5 @@
+import numpy as np
+
 class Evaluation:
 
     @staticmethod
@@ -19,14 +21,16 @@ class Evaluation:
     @staticmethod
     def mean_squared_error(y_true, y_pred):
         """
-        Calculate the mean squared error for predictions.
+        Calculate the mean squared error for predictions using NumPy for efficiency.
         
-        :param y_true: The ground truth labels or values.
-        :param y_pred: The predicted labels or values.
+        :param y_true: The ground truth labels or values (as a NumPy array or compatible format).
+        :param y_pred: The predicted labels or values (as a NumPy array or compatible format).
         :return: The mean squared error.
         """
-        # Calculate the mean squared error
-        mse = sum((true - pred) ** 2 for true, pred in zip(y_true, y_pred)) / len(y_true)
+        y_true = np.array(y_true)
+        y_pred = np.array(y_pred)
+        
+        mse = np.mean((y_true - y_pred) ** 2)
 
         return mse
         

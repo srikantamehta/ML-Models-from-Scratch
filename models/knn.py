@@ -111,3 +111,119 @@ class KNN:
         test_set_with_predictions['Predicted Value'] = predictions
 
         return test_set_with_predictions
+
+    def condensed_knn_classification(self, train_set, k=1):
+        """
+        Generates a condensed training set from the given training set by iteratively adding instances
+        that are misclassified by their nearest neighbor within the condensed set.
+
+        The goal is to reduce the size of the training set while preserving or even improving the classification
+        accuracy of the k-NN algorithm.
+
+        Parameters:
+            train_set (DataFrame): The original training dataset, including the target column.
+            k (int): The number of nearest neighbors to consider, typically k=1 for condensed k-NN.
+
+        Returns:
+            DataFrame: The condensed version of the training set.
+        """
+        change = True
+        condensed_set = train_set.sample(n=1)
+        
+        while change:
+            change = False
+            for index, row in train_set.drop(condensed_set.index).iterrows():
+                nearest_neighbors = self.k_nearest_neighbors(row.drop(self.config['target_column']).values, condensed_set, k)
+                nearest_neighbor_label = nearest_neighbors[0][1]
+                if nearest_neighbor_label != row[self.config['target_column']]:
+                    condensed_set = pd.concat([condensed_set, train_set.loc[[index]]])
+                    change = True
+
+        return condensed_set
+    
+    def condensed_knn_regression(self, train_set, epsilon, k=1):
+        """
+        Generates a condensed training set from the given training set by iteratively adding instances
+        that are misclassified by their nearest neighbor within the condensed set.
+
+        The goal is to reduce the size of the training set while preserving or even improving the classification
+        accuracy of the k-NN algorithm.
+
+        Parameters:
+            train_set (DataFrame): The original training dataset, including the target column.
+            k (int): The number of nearest neighbors to consider, typically k=1 for condensed k-NN.
+
+        Returns:
+            DataFrame: The condensed version of the training set.
+        """
+        change = True
+        condensed_set = train_set.sample(n=1)
+        
+        while change:
+            change = False
+            for index, row in train_set.drop(condensed_set.index).iterrows():
+                nearest_neighbors = self.k_nearest_neighbors(row.drop(self.config['target_column']).values, condensed_set, k)
+                nearest_neighbor_label = nearest_neighbors[0][1]
+                if abs(nearest_neighbor_label - row[self.config['target_column']]) > epsilon:
+                    condensed_set = pd.concat([condensed_set, train_set.loc[[index]]])
+                    change = True
+
+        return condensed_set
+
+    def edited_knn_classificaton(self, train_set, k=1):
+        """
+        Refines the training set by removing instances that are misclassified by their k nearest neighbors.
+        This editing process aims to remove noisy instances or those that are near the decision boundary,
+        potentially improving the k-NN classifier's accuracy and efficiency.
+
+        Parameters:
+            train_set (DataFrame): The original training dataset, including the target column.
+            k (int): The number of nearest neighbors to consider for determining misclassification.
+
+        Returns:
+            DataFrame: The edited version of the training set, with potentially noisy instances removed.
+        """
+        isRemoved = True
+        edited_set = train_set.copy()
+        while isRemoved:
+            isRemoved = False
+            for index, row in edited_set.iterrows():
+                features = row.drop(self.config['target_column']).values
+                temp_set = edited_set.drop(index)
+                nearest_neighbors = self.k_nearest_neighbors(features, temp_set, k)
+                labels = [label for _, label in nearest_neighbors]
+                predicted_class = max(set(labels), key=labels.count)
+                if predicted_class != row[self.config['target_column']]:
+                    edited_set = edited_set.drop(index)
+                    isRemoved = True
+
+        return edited_set
+    
+    def edited_knn_regression(self, train_set, epsilon, k=1):
+        """
+        Refines the training set by removing instances that are misclassified by their k nearest neighbors.
+        This editing process aims to remove noisy instances or those that are near the decision boundary,
+        potentially improving the k-NN classifier's accuracy and efficiency.
+
+        Parameters:
+            train_set (DataFrame): The original training dataset, including the target column.
+            k (int): The number of nearest neighbors to consider for determining misclassification.
+
+        Returns:
+            DataFrame: The edited version of the training set, with potentially noisy instances removed.
+        """
+        isRemoved = True
+        edited_set = train_set.copy()
+        while isRemoved:
+            isRemoved = False
+            for index, row in edited_set.iterrows():
+                features = row.drop(self.config['target_column']).values
+                temp_set = edited_set.drop(index)
+                nearest_neighbors = self.k_nearest_neighbors(features, temp_set, k)
+                labels = [label for _, label in nearest_neighbors]
+                predicted_class = max(set(labels), key=labels.count)
+                if abs(predicted_class - row[self.config['target_column']]) > epsilon:
+                    edited_set = edited_set.drop(index)
+                    isRemoved = True
+
+        return edited_set
