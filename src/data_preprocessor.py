@@ -16,11 +16,14 @@ class DataProcessor:
         column_names = self.config['column_names']
         missing_value_representation = self.config['missing_values']
         has_header = self.config.get('has_header', False)  # Default to False if not specified
+        numeric_features = self.config['numeric_features']
+
+        dtype_dict = {col: str for col in column_names if col not in numeric_features}
 
         if has_header:
-            data = pd.read_csv(file_path, sep=separator, na_values=missing_value_representation)
+            data = pd.read_csv(file_path, sep=separator, na_values=missing_value_representation, dtype=dtype_dict)
         else:
-            data = pd.read_csv(file_path, sep=separator, names=column_names, header=None, na_values=missing_value_representation)
+            data = pd.read_csv(file_path, sep=separator, names=column_names, header=None, na_values=missing_value_representation, dtype=dtype_dict)
         
         return data
     

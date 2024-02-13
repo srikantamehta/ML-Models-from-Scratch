@@ -13,6 +13,52 @@ class KNN:
             config (dict): Configuration settings, including the name of the target column.
         """
         self.config = config
+        self.vdm = {}
+
+    def is_numeric(self, val):
+        """
+        Checks if the given individual value is numeric (int or float).
+        """
+        return isinstance(val, (int, float, np.integer, np.floating))
+
+        
+    def compute_vdm(self, X, y, num_classes, p=1):
+        """
+        Computes the VDM for all categorical features in the dataset.
+        """
+        n_features = X.shape[1]
+        for feature_index in range(n_features):
+            if not self.is_numeric(X[0, feature_index]):
+                feature_values = np.unique(X[:, feature_index])
+                for value_i in feature_values:
+                    for value_j in feature_values:
+                        delta_sum = 0
+                        for class_val in range(num_classes):
+                            C_i_a = np.sum((X[:, feature_index] == value_i) & (y == class_val))
+                            C_i = np.sum(X[:, feature_index] == value_i)
+                            C_j_a = np.sum((X[:, feature_index] == value_j) & (y == class_val))
+                            C_j = np.sum(X[:, feature_index] == value_j)
+                            ratio_i = C_i_a / C_i if C_i > 0 else 0
+                            ratio_j = C_j_a / C_j if C_j > 0 else 0
+                            delta_sum += abs(ratio_i - ratio_j) ** p
+                        self.vdm[(feature_index, value_i, value_j)] = delta_sum ** (1/p)
+
+    def calc_distance(self, X, Y):
+        distances = np.zeros(X.shape[0])
+        
+        for feature_index in range(X.shape[1]):
+            feature_values = X[:, feature_index]
+            
+            # Check if the feature is numeric; if not, handle as categorical
+            if self.is_numeric(Y[feature_index]) and all(self.is_numeric(x) for x in feature_values):
+                numeric_values = np.array(feature_values, dtype=float)
+                y_value = float(Y[feature_index])
+                distances += (numeric_values - y_value) ** 2
+            else:
+                for i, x_val in enumerate(X[:, feature_index]):
+                    vdm_key = (feature_index, x_val, Y[feature_index])
+                    distances[i] += self.vdm.get(vdm_key, 0)  # Default to 0 if key not found
+        return np.sqrt(distances)
 
     def calc_euclidian_distance(self, X, Y):
         """
@@ -29,7 +75,6 @@ class KNN:
         Y = np.array(Y, dtype=float)
         return np.sqrt(np.sum((X - Y) ** 2, axis=1))
 
-
     def k_nearest_neighbors(self, test_point, train_set, k):
         """
         Finds the k nearest neighbors of a given test point.
@@ -45,7 +90,7 @@ class KNN:
         train_set_features = train_set.drop(columns=[self.config['target_column']]).values
         train_set_target = train_set[self.config['target_column']].values
 
-        distances = self.calc_euclidian_distance(train_set_features, np.array(test_point))
+        distances = self.calc_distance(train_set_features, np.array(test_point))
 
         nearest_indices = np.argsort(distances)[:k]
         
