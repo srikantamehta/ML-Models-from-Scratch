@@ -135,6 +135,7 @@ class KNN:
             for index, row in train_set.drop(condensed_set.index).iterrows():
                 nearest_neighbors = self.k_nearest_neighbors(row.drop(self.config['target_column']).values, condensed_set, k)
                 nearest_neighbor_label = nearest_neighbors[0][1]
+                print(f"{nearest_neighbor_label},{row[self.config['target_column']]}")
                 if nearest_neighbor_label != row[self.config['target_column']]:
                     condensed_set = pd.concat([condensed_set, train_set.loc[[index]]])
                     change = True
