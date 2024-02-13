@@ -22,7 +22,7 @@ class KNN:
         return isinstance(val, (int, float, np.integer, np.floating))
 
         
-    def compute_vdm(self, X, y, num_classes, p=1):
+    def compute_vdm(self, X, y, num_classes, p=2):
         """
         Computes the VDM for all categorical features in the dataset.
         """
@@ -59,21 +59,6 @@ class KNN:
                     vdm_key = (feature_index, x_val, Y[feature_index])
                     distances[i] += self.vdm.get(vdm_key, 0)  # Default to 0 if key not found
         return np.sqrt(distances)
-
-    def calc_euclidian_distance(self, X, Y):
-        """
-        Calculates the Euclidean distance between two sets of points.
-
-        Parameters:
-            X (ndarray): An array of points.
-            Y (ndarray): A single point.
-
-        Returns:
-            ndarray: The Euclidean distances between X and Y.
-        """
-        X = np.array(X, dtype=float)
-        Y = np.array(Y, dtype=float)
-        return np.sqrt(np.sum((X - Y) ** 2, axis=1))
 
     def k_nearest_neighbors(self, test_point, train_set, k):
         """
