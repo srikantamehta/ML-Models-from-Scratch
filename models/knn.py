@@ -25,6 +25,8 @@ class KNN:
         Returns:
             ndarray: The Euclidean distances between X and Y.
         """
+        X = np.array(X, dtype=float)
+        Y = np.array(Y, dtype=float)
         return np.sqrt(np.sum((X - Y) ** 2, axis=1))
 
 
