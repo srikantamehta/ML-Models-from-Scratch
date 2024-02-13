@@ -14,20 +14,19 @@ class KNN:
         """
         self.config = config
 
-    def calc_euclidian_distance(self, x1, x2):
+    def calc_euclidian_distance(self, X, Y):
         """
-        Calculates the Euclidean distance between two points.
+        Calculates the Euclidean distance between two sets of points.
 
         Parameters:
-            x1 (array-like): The first point.
-            x2 (array-like): The second point.
+            X (ndarray): An array of points.
+            Y (ndarray): A single point.
 
         Returns:
-            float: The Euclidean distance between the two points.
+            ndarray: The Euclidean distances between X and Y.
         """
-        x1 = np.array(x1)
-        x2 = np.array(x2)
-        return np.sqrt(np.sum((x1 - x2) ** 2))
+        return np.sqrt(np.sum((X - Y) ** 2, axis=1))
+
 
     def k_nearest_neighbors(self, test_point, train_set, k):
         """
@@ -41,17 +40,14 @@ class KNN:
         Returns:
             list of tuples: A list containing the distance to the test point and the target value of each of the k nearest neighbors.
         """
-        train_set_features = train_set.drop(columns=[self.config['target_column']])
-        train_set_target = train_set[self.config['target_column']]
+        train_set_features = train_set.drop(columns=[self.config['target_column']]).values
+        train_set_target = train_set[self.config['target_column']].values
 
-        # Calculate distances from the test point to all training points
-        distances = [self.calc_euclidian_distance(test_point, train_set_features.iloc[index]) for index in range(len(train_set_features))]
+        distances = self.calc_euclidian_distance(train_set_features, np.array(test_point))
 
-        # Get indices of the k smallest distances
         nearest_indices = np.argsort(distances)[:k]
-
-        # Return the k nearest neighbors (distance and target value)
-        return [(distances[i], train_set_target.iloc[i]) for i in nearest_indices]
+        
+        return [(distances[i], train_set_target[i]) for i in nearest_indices]
 
     def knn_classifier(self, test_set, train_set, k):
         """
@@ -135,7 +131,6 @@ class KNN:
             for index, row in train_set.drop(condensed_set.index).iterrows():
                 nearest_neighbors = self.k_nearest_neighbors(row.drop(self.config['target_column']).values, condensed_set, k)
                 nearest_neighbor_label = nearest_neighbors[0][1]
-                print(f"{nearest_neighbor_label},{row[self.config['target_column']]}")
                 if nearest_neighbor_label != row[self.config['target_column']]:
                     condensed_set = pd.concat([condensed_set, train_set.loc[[index]]])
                     change = True
