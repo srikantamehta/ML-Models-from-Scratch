@@ -57,7 +57,7 @@ class KNN:
             else:
                 for i, x_val in enumerate(X[:, feature_index]):
                     vdm_key = (feature_index, x_val, Y[feature_index])
-                    distances[i] += self.vdm.get(vdm_key, 0)  # Default to 0 if key not found
+                    distances[i] += self.vdm.get(vdm_key, 0)  
         return np.sqrt(distances)
 
     def k_nearest_neighbors(self, test_point, train_set, k):
@@ -229,16 +229,18 @@ class KNN:
     
     def edited_knn_regression(self, train_set, epsilon, k=1):
         """
-        Refines the training set by removing instances that are misclassified by their k nearest neighbors.
-        This editing process aims to remove noisy instances or those that are near the decision boundary,
-        potentially improving the k-NN classifier's accuracy and efficiency.
+        Refines the training set by removing instances that have a significant difference 
+        between their target value and the predicted value based on their k nearest neighbors.
 
         Parameters:
             train_set (DataFrame): The original training dataset, including the target column.
-            k (int): The number of nearest neighbors to consider for determining misclassification.
+            epsilon (float): Instances with a difference greater than epsilon are considered outliers or noise 
+                            and are removed from the training set.
+            k (int, optional): The number of nearest neighbors to consider for determining the predicted value. 
+                            Defaults to 1.
 
         Returns:
-            DataFrame: The edited version of the training set, with potentially noisy instances removed.
+            DataFrame: The edited version of the training set, with potentially noisy or outlier instances removed.
         """
         isRemoved = True
         edited_set = train_set.copy()

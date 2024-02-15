@@ -18,7 +18,7 @@ class DataProcessor:
         has_header = self.config.get('has_header', False)  # Default to False if not specified
         numeric_features = self.config['numeric_features']
 
-        dtype_dict = {col: str for col in column_names if col not in numeric_features}
+        dtype_dict = {col: str for col in column_names if col not in numeric_features + [self.config['target_column']]}
 
         if has_header:
             data = pd.read_csv(file_path, sep=separator, na_values=missing_value_representation, dtype=dtype_dict)
