@@ -148,6 +148,23 @@ class DataProcessor:
                 # Standardize the data
                 data[feature] = (data[feature] - mean) / std
             else:
-                print(f"Standard deviation for feature '{feature}' is zero in the training set. Skipping standardization for this feature.")
+                pass
 
         return data
+    
+    def log_transform(self, data):
+
+        data = data.copy()
+        transform = np.log1p(data[self.config['target_column']])
+        data[self.config['target_column']] = transform
+
+        return data
+    
+    def inverse_log_transform(self,data):
+
+        transform = np.expm1(data)
+               
+        return transform
+
+
+
