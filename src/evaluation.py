@@ -42,7 +42,7 @@ class Evaluation:
         :param y_pred: The predicted labels.
         :return: The weighted average precision.
         """
-        return precision_score(y_true, y_pred, average='weighted')
+        return precision_score(y_true, y_pred, average='weighted',zero_division=0)
 
     @staticmethod
     def recall(y_true, y_pred):
