@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+from src.evaluation import Evaluation
 
 class KNN:
     """
@@ -227,6 +228,51 @@ class KNN:
 
         return edited_set
     
+    def new_edited_knn_classification(self, train_set, validation_set, k=1):
+        """
+        Edits the training set by removing instances that are misclassified by their nearest neighbors.
+        
+        Parameters:
+            train_set (DataFrame): The original training dataset, including the target column.
+            validation_set (DataFrame): The dataset used for validating the performance during the editing process.
+            k (int): The number of nearest neighbors to consider for determining misclassification.
+
+        Returns:
+            DataFrame: The edited version of the training set, with potentially noisy instances removed.
+        """
+        best_loss = 1  # Initialize to one
+        best_set = train_set.copy()
+        
+        while True:
+            removal_indices = []
+            for index, row in train_set.iterrows():
+                features = row.drop(self.config['target_column']).values
+                temp_set = train_set.drop(index)
+                nearest_neighbors = self.k_nearest_neighbors(features, temp_set, k)
+                labels = [label for _, label in nearest_neighbors]
+                predicted_class = max(set(labels), key=labels.count)
+                
+                if predicted_class != row[self.config['target_column']]:
+                    removal_indices.append(index)
+            
+            if removal_indices:
+                train_set = train_set.drop(removal_indices)
+                predictions = self.knn_classifier(validation_set, train_set, k)['Predicted Class']
+                current_loss = Evaluation.zero_one_loss(validation_set[self.config['target_column']], predictions)
+                
+                if current_loss < best_loss:  # Check if the current loss is lower (better)
+                    best_loss = current_loss
+                    best_set = train_set.copy()
+                else:
+                    # Loss did not improve, stop and revert to best set
+                    break
+            else:
+                # No instances marked for removal, stop
+                break
+
+        return best_set
+
+
     def edited_knn_regression(self, train_set, epsilon, k=1):
         """
         Refines the training set by removing instances that have a significant difference 
@@ -257,3 +303,53 @@ class KNN:
                     isRemoved = True
 
         return edited_set
+    
+    def new_edited_knn_regression(self, train_set, validation_set, epsilon, gamma, k=1):
+        """
+        Refines the training set by removing instances that have a significant difference 
+        between their target value and the predicted value based on their k nearest neighbors.
+
+        Parameters:
+            train_set (DataFrame): The original training dataset, including the target column.
+            validation_set (DataFrame): The dataset used for validating the performance during the editing process.
+            epsilon (float): Threshold for considering prediction errors as significant.
+            k (int): The number of nearest neighbors to consider for determining the predicted value.
+
+        Returns:
+            DataFrame: The edited version of the training set, with potentially noisy or outlier instances removed.
+        """
+        
+        best_loss = float('inf')  # Initialize to a large value for comparison
+        best_set = train_set.copy()
+
+        while True:
+            removal_indices = []
+            for index, row in train_set.iterrows():
+                features = row.drop(self.config['target_column']).values
+                temp_set = train_set.drop(index)
+                nearest_neighbors = self.k_nearest_neighbors(features, temp_set, k)
+                predicted_value = np.mean([target for _, target in nearest_neighbors])  # Use mean for regression
+                
+                if abs(predicted_value - row[self.config['target_column']]) > epsilon:
+                    removal_indices.append(index)
+
+            if removal_indices:
+                train_set = train_set.drop(removal_indices)
+                
+                # Validate the edited set performance
+                
+                validation_targets = validation_set[self.config['target_column']]
+                predictions = self.knn_regression(validation_set, train_set, k, gamma)['Predicted Value']
+                current_loss = Evaluation.mean_squared_error(validation_targets, predictions)
+                
+                if current_loss < best_loss:
+                    best_loss = current_loss
+                    best_set = train_set.copy()
+                else:
+                    # Performance degraded, stop and revert to best set
+                    break
+            else:
+                # No instances marked for removal, stop
+                break
+
+        return best_set
