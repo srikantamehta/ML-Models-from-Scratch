@@ -198,37 +198,8 @@ class KNN:
                     change = True
 
         return condensed_set
-
-    def edited_knn_classificaton(self, train_set, k=1):
-        """
-        Refines the training set by removing instances that are misclassified by their k nearest neighbors.
-        This editing process aims to remove noisy instances or those that are near the decision boundary,
-        potentially improving the k-NN classifier's accuracy and efficiency.
-
-        Parameters:
-            train_set (DataFrame): The original training dataset, including the target column.
-            k (int): The number of nearest neighbors to consider for determining misclassification.
-
-        Returns:
-            DataFrame: The edited version of the training set, with potentially noisy instances removed.
-        """
-        isRemoved = True
-        edited_set = train_set.copy()
-        while isRemoved:
-            isRemoved = False
-            for index, row in edited_set.iterrows():
-                features = row.drop(self.config['target_column']).values
-                temp_set = edited_set.drop(index)
-                nearest_neighbors = self.k_nearest_neighbors(features, temp_set, k)
-                labels = [label for _, label in nearest_neighbors]
-                predicted_class = max(set(labels), key=labels.count)
-                if predicted_class != row[self.config['target_column']]:
-                    edited_set = edited_set.drop(index)
-                    isRemoved = True
-
-        return edited_set
-    
-    def new_edited_knn_classification(self, train_set, validation_set, k=1):
+  
+    def edited_knn_classification(self, train_set, validation_set, k=1):
         """
         Edits the training set by removing instances that are misclassified by their nearest neighbors.
         
@@ -271,40 +242,8 @@ class KNN:
                 break
 
         return best_set
-
-
-    def edited_knn_regression(self, train_set, epsilon, k=1):
-        """
-        Refines the training set by removing instances that have a significant difference 
-        between their target value and the predicted value based on their k nearest neighbors.
-
-        Parameters:
-            train_set (DataFrame): The original training dataset, including the target column.
-            epsilon (float): Instances with a difference greater than epsilon are considered outliers or noise 
-                            and are removed from the training set.
-            k (int, optional): The number of nearest neighbors to consider for determining the predicted value. 
-                            Defaults to 1.
-
-        Returns:
-            DataFrame: The edited version of the training set, with potentially noisy or outlier instances removed.
-        """
-        isRemoved = True
-        edited_set = train_set.copy()
-        while isRemoved:
-            isRemoved = False
-            for index, row in edited_set.iterrows():
-                features = row.drop(self.config['target_column']).values
-                temp_set = edited_set.drop(index)
-                nearest_neighbors = self.k_nearest_neighbors(features, temp_set, k)
-                labels = [label for _, label in nearest_neighbors]
-                predicted_class = max(set(labels), key=labels.count)
-                if abs(predicted_class - row[self.config['target_column']]) > epsilon:
-                    edited_set = edited_set.drop(index)
-                    isRemoved = True
-
-        return edited_set
-    
-    def new_edited_knn_regression(self, train_set, validation_set, epsilon, gamma, k=1):
+  
+    def edited_knn_regression(self, train_set, validation_set, epsilon, gamma, k=1):
         """
         Refines the training set by removing instances that have a significant difference 
         between their target value and the predicted value based on their k nearest neighbors.
