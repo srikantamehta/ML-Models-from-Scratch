@@ -15,6 +15,19 @@ class KNN:
         """
         self.config = config
         self.vdm = {}
+        self.operation_count = 0
+
+    def reset_operation_count(self):
+        """
+        Resets the operation counter to zero.
+        """
+        self.operation_count = 0
+    
+    def get_operation_count(self):
+        """
+        Returns the current value of the operation counter.
+        """
+        return self.operation_count
 
     def is_numeric(self, val):
         """
@@ -42,23 +55,25 @@ class KNN:
                             ratio_i = C_i_a / C_i if C_i > 0 else 0
                             ratio_j = C_j_a / C_j if C_j > 0 else 0
                             delta_sum += abs(ratio_i - ratio_j) ** p
+                            self.operation_count += 6  # For the operations in the loop
                         self.vdm[(feature_index, value_i, value_j)] = delta_sum ** (1/p)
+                        self.operation_count += 1  # For the power operation
 
     def calc_distance(self, X, Y):
         distances = np.zeros(X.shape[0])
         
         for feature_index in range(X.shape[1]):
             feature_values = X[:, feature_index]
-            
-            # Check if the feature is numeric; if not, handle as categorical
             if self.is_numeric(Y[feature_index]) and all(self.is_numeric(x) for x in feature_values):
                 numeric_values = np.array(feature_values, dtype=float)
                 y_value = float(Y[feature_index])
                 distances += (numeric_values - y_value) ** 2
+                self.operation_count += 3 * X.shape[0]  # Distance calculations
             else:
                 for i, x_val in enumerate(X[:, feature_index]):
                     vdm_key = (feature_index, x_val, Y[feature_index])
-                    distances[i] += self.vdm.get(vdm_key, 0)  
+                    distances[i] += self.vdm.get(vdm_key, 0)
+                    self.operation_count += 1  # For VDM lookup
         return np.sqrt(distances)
 
     def k_nearest_neighbors(self, test_point, train_set, k):
@@ -227,14 +242,17 @@ class KNN:
                     removal_indices.append(index)
             
             if removal_indices:
+                print("Editing training set...")
                 train_set = train_set.drop(removal_indices)
                 predictions = self.knn_classifier(validation_set, train_set, k)['Predicted Class']
                 current_loss = Evaluation.zero_one_loss(validation_set[self.config['target_column']], predictions)
                 
                 if current_loss < best_loss:  # Check if the current loss is lower (better)
+                    print(f"Zero one loss improved from {best_loss} to {current_loss}. Conitnuing...")
                     best_loss = current_loss
                     best_set = train_set.copy()
                 else:
+                    print(f"Zero-one loss degraded from {best_loss} to {current_loss}. Stopping editing. ")
                     # Loss did not improve, stop and revert to best set
                     break
             else:
@@ -264,6 +282,7 @@ class KNN:
         while True:
             removal_indices = []
             for index, row in train_set.iterrows():
+                
                 features = row.drop(self.config['target_column']).values
                 temp_set = train_set.drop(index)
                 nearest_neighbors = self.k_nearest_neighbors(features, temp_set, k)
@@ -273,6 +292,7 @@ class KNN:
                     removal_indices.append(index)
 
             if removal_indices:
+                print("Editing training set...")
                 train_set = train_set.drop(removal_indices)
                 
                 # Validate the edited set performance
@@ -282,9 +302,11 @@ class KNN:
                 current_loss = Evaluation.mean_squared_error(validation_targets, predictions)
                 
                 if current_loss < best_loss:
+                    print(f"MSE improved from {best_loss} to {current_loss}. Conitnuing...")
                     best_loss = current_loss
                     best_set = train_set.copy()
                 else:
+                    print(f"Zero-one loss degraded from {best_loss} to {current_loss}. Stopping editing. ")
                     # Performance degraded, stop and revert to best set
                     break
             else:
