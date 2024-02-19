@@ -15,7 +15,7 @@ class DataProcessor:
         separator = self.config['separator']
         column_names = self.config['column_names']
         missing_value_representation = self.config['missing_values']
-        has_header = self.config.get('has_header', False)  # Default to False if not specified
+        has_header = self.config.get('has_header', False)  
         numeric_features = self.config['numeric_features']
 
         dtype_dict = {col: str for col in column_names if col not in numeric_features + [self.config['target_column']]}
@@ -153,7 +153,15 @@ class DataProcessor:
         return data
     
     def log_transform(self, data):
+        """
+        Log transforms the target column of the input data using natural logarithm.
 
+        Args:
+            data: Input data containing the target column.
+
+        Returns:
+        pandas.DataFrame: Transformed data with the target column log transformed.
+        """
         data = data.copy()
         transform = np.log1p(data[self.config['target_column']])
         data[self.config['target_column']] = transform
@@ -161,7 +169,15 @@ class DataProcessor:
         return data
     
     def inverse_log_transform(self,data):
+        """
+        Inverse transforms data that was previously log transformed.
 
+        Args:
+            data: Data previously logarithmically transformed.
+
+        Returns:
+            numpy.ndarray: Inversely transformed data.
+        """
         transform = np.expm1(data)
                
         return transform

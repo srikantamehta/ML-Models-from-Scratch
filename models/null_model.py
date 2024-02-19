@@ -1,6 +1,10 @@
 from statistics import mode, mean
 
 class NullModelClassification:
+    """
+    A class representing a null model for classification tasks.
+    This null model predicts the most common class label for all instances in the dataset.
+    """
     def __init__(self, config):
         self.config = config
         
@@ -12,6 +16,10 @@ class NullModelClassification:
         return predictions
     
 class NullModelRegression:
+    """
+    A class representing a null model for regression tasks.
+    This null model predicts the mean value of the target variable for all instances in the dataset.
+    """
     def __init__(self, config):
         self.config = config
 
