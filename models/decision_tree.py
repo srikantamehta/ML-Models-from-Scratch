@@ -1,30 +1,30 @@
 import math
+import pandas as pd
 import numpy as np 
 
 class DecisionTreeNode:
 
-    def __init__(self, feature=None, threshold=None, left=None, right=None, value=None, is_leaf=False):
-        self.feature = feature  # Feature on which to split
+    def __init__(self, feature=None, threshold=None, value=None, is_leaf=False, children=None):
+        self.feature = feature  # Feature on which to split 
         self.threshold = threshold  # Threshold for the split if the feature is numerical
-        self.left = left  # Left child node
-        self.right = right  # Right child node
-        self.value = value  # Prediction value if the node is a leaf
+        self.value = value  # Prediction value (for leaf nodes)
         self.is_leaf = is_leaf  # Boolean flag indicating if the node is a leaf node
-    
-    @staticmethod
-    def createLeafNode(self, label):
-        # Implementation to create a leaf node
-        return DecisionTreeNode(value=label, is_leaf=True)
+        self.children = children if children is not None else {}  # Children nodes
 
-    @classmethod
-    def createDecisionNode(cls, feature, threshold=None):
-        # Implementation to create a decision node
-        return cls(feature=feature, threshold=threshold) 
+    def add_child(self, key, node):
+        
+        self.children[key] = node
+
+    def set_leaf_value(self, value):
+      
+        self.is_leaf = True
+        self.value = value
 
 class DecisionTree:
 
     def __init__(self, config) -> None:
         
+        self.root = None
         self.config = config
 
     def calc_entropy(self, labels):
@@ -91,7 +91,7 @@ class DecisionTree:
 
         return gain_details
     
-    def select_feature_gain_ratio(self, labels, features):
+    def select_feature_gain_ratio(self, features, labels):
         gain_ratios = self.calc_gain_ratio(labels, features)
         
         # Correctly access the 'gain_ratio' value within the dictionaries for comparison
@@ -104,6 +104,91 @@ class DecisionTree:
         # Return the best feature, its gain ratio, and threshold (if applicable)
         return best_feature, best_gain_ratio, best_threshold
 
-    def build_classification_tree(self, data_train):
+    def split_data(self, data, target, feature, threshold=None):
 
-        pass
+        subsets = {}
+
+        if threshold is not None:
+            # Numerical split
+            left_mask = data[feature] <= threshold
+            right_mask = ~left_mask
+
+            left_data = data[left_mask]
+            left_target = target[left_mask]
+
+            right_data = data[right_mask]
+            right_target = target[right_mask]
+
+            subsets['left'] = (left_data, left_target)
+            subsets['right'] = (right_data, right_target)
+        else:
+            # Categorical split
+            for category in data[feature].unique():
+                category_mask = data[feature] == category
+                category_data = data[category_mask]
+                category_target = target[category_mask]
+
+                subsets[category] = (category_data, category_target)
+
+        return subsets
+
+    def build_classification_tree(self, data, target, depth=0):
+        # Check for a pure split or if there are no features left
+        if len(target.unique()) == 1:
+            return DecisionTreeNode(value=target.iloc[0], is_leaf=True)
+        elif data.empty or len(data.columns) == 0:
+            # Return a leaf node with the most common target value
+            return DecisionTreeNode(value=target.mode().iloc[0], is_leaf=True)
+        
+        # Select the best feature and threshold for splitting
+        best_feature, best_gain_ratio, best_threshold = self.select_feature_gain_ratio(data, target)
+        
+        # If no gain is found (data cannot be split), return a leaf node
+        if best_gain_ratio <= 0:
+            return DecisionTreeNode(value=target.mode().iloc[0], is_leaf=True)
+        
+        # Split the dataset based on the best feature and threshold
+        subsets = self.split_data(data, target, best_feature, best_threshold)
+        
+        # Create the decision node
+        node = DecisionTreeNode(feature=best_feature, threshold=best_threshold)
+        
+        # Recursively build the tree for each subset
+        for subset_key, (subset_data, subset_target) in subsets.items():
+            # If splitting was numerical, subset_key will be 'left' or 'right'
+            # If splitting was categorical, subset_key will be the category value
+            
+            # Drop the used feature for categorical split to avoid infinite recursion
+            if best_threshold is None:  # Categorical feature
+                subset_data = subset_data.drop(columns=[best_feature])
+            
+            child_node = self.build_classification_tree(subset_data, subset_target, depth + 1)
+            node.add_child(subset_key, child_node)
+        
+        return node
+
+    def predict(self, test_instances):
+        # Check if test_instances is a DataFrame
+        if isinstance(test_instances, pd.DataFrame):
+            # Use DataFrame.apply() for vectorized row-wise operation
+            predictions = test_instances.apply(lambda row: self.traverse_tree(self.root, row), axis=1)
+            return predictions
+        else:
+            raise ValueError("Invalid input format for test_instances. Expected a DataFrame.")
+
+            
+    def traverse_tree(self, node, test_instance):
+        if node.is_leaf:
+            return node.value
+        # Check if the feature exists in the test instance and handle missing features gracefully
+        if node.feature in test_instance and not pd.isnull(test_instance[node.feature]):
+            if node.threshold is not None:  # Numerical feature
+                if test_instance[node.feature] <= node.threshold:
+                    return self.traverse_tree(node.children['left'], test_instance)
+                else:
+                    return self.traverse_tree(node.children['right'], test_instance)
+            else:  # Categorical feature, use the feature value directly
+                next_node_key = test_instance[node.feature]
+                if next_node_key in node.children:
+                    return self.traverse_tree(node.children[next_node_key], test_instance)
+        return "Unknown"  # For missing features or other edge cases
