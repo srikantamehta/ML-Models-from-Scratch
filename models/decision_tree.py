@@ -1,6 +1,7 @@
 import math
 import pandas as pd
 import numpy as np 
+from src.evaluation import Evaluation
 
 class DecisionTreeNode:
 
@@ -91,6 +92,59 @@ class DecisionTree:
 
         return gain_details
     
+    def calculate_mse(self, data, target):
+        mse_details = {}  # This will store MSE and thresholds for numerical features, and category splits for categorical features
+
+        for feature in data.columns:
+            if feature in self.config['numeric_features']:
+                # Numerical feature: Evaluate potential thresholds for splitting
+                sorted_values = data[feature].sort_values().unique()
+                thresholds = (sorted_values[:-1] + sorted_values[1:]) / 2  # Midpoints as potential thresholds
+
+                best_mse = np.inf
+                best_threshold = None
+                for threshold in thresholds:
+                    # Split data based on threshold
+                    left_target = target[data[feature] <= threshold]
+                    right_target = target[data[feature] > threshold]
+
+                    # Calculate MSE for each partition
+                    left_mse = np.mean((left_target - left_target.mean())**2) if len(left_target) > 0 else 0
+                    right_mse = np.mean((right_target - right_target.mean())**2) if len(right_target) > 0 else 0
+
+                    # Weighted average of the MSE for the two groups
+                    total_mse = (len(left_target) * left_mse + len(right_target) * right_mse) / (len(left_target) + len(right_target))
+
+                    if total_mse < best_mse:
+                        best_mse = total_mse
+                        best_threshold = threshold
+
+                mse_details[feature] = {'mse': best_mse, 'threshold': best_threshold}
+            else:
+                # Categorical feature: Evaluate splits based on each category
+                categories = data[feature].unique()
+
+                best_mse = np.inf
+                best_category = None
+                for category in categories:
+                    in_category_target = target[data[feature] == category]
+                    out_category_target = target[data[feature] != category]
+
+                    # Calculate MSE for in-category and out-of-category
+                    in_mse = np.mean((in_category_target - in_category_target.mean())**2) if len(in_category_target) > 0 else 0
+                    out_mse = np.mean((out_category_target - out_category_target.mean())**2) if len(out_category_target) > 0 else 0
+
+                    # Weighted average of the MSE
+                    total_mse = (len(in_category_target) * in_mse + len(out_category_target) * out_mse) / (len(in_category_target) + len(out_category_target))
+
+                    if total_mse < best_mse:
+                        best_mse = total_mse
+                        best_category = category
+
+                mse_details[feature] = {'mse': best_mse, 'category': best_category}
+
+        return mse_details
+    
     def select_feature_gain_ratio(self, features, labels):
         gain_ratios = self.calc_gain_ratio(labels, features)
         
@@ -103,6 +157,15 @@ class DecisionTree:
         
         # Return the best feature, its gain ratio, and threshold (if applicable)
         return best_feature, best_gain_ratio, best_threshold
+
+    def select_feature_mse(self, feature, labels):
+        
+        mean_square_errors = self.calculate_mse(feature, labels)
+        best_feature = min(mean_square_errors, key=lambda f: mean_square_errors[f]['mse']) 
+        best_mse = mean_square_errors[best_feature].get('mse')
+        best_threshold = mean_square_errors[best_feature].get('threshold')
+
+        return best_feature, best_mse, best_threshold
 
     def split_data(self, data, target, feature, threshold=None):
 
@@ -166,7 +229,7 @@ class DecisionTree:
             node.add_child(subset_key, child_node)
         
         return node
-
+    
     def predict(self, test_instances):
         # Check if test_instances is a DataFrame
         if isinstance(test_instances, pd.DataFrame):
