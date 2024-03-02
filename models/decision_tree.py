@@ -92,58 +92,40 @@ class DecisionTree:
 
         return gain_details
     
-    def calculate_mse(self, data, target):
-        mse_details = {}  # This will store MSE and thresholds for numerical features, and category splits for categorical features
 
+    def calculate_mse(self, data, target, feature):
+        sorted_values = data[feature].sort_values().unique()
+        thresholds = (sorted_values[:-1] + sorted_values[1:]) / 2
+
+        best_mse = np.inf
+        best_threshold = None
+        for threshold in thresholds:
+            left_target = target[data[feature] <= threshold]
+            right_target = target[data[feature] > threshold]
+
+            left_mse = np.mean((left_target - left_target.mean())**2) if len(left_target) > 0 else 0
+            right_mse = np.mean((right_target - right_target.mean())**2) if len(right_target) > 0 else 0
+
+            total_mse = (len(left_target) * left_mse + len(right_target) * right_mse) / (len(left_target) + len(right_target))
+
+            if total_mse < best_mse:
+                best_mse = total_mse
+                best_threshold = threshold
+
+        return best_mse, best_threshold
+    
+    def select_feature_mse(self, data, target):
+        mean_square_errors = {}
         for feature in data.columns:
             if feature in self.config['numeric_features']:
-                # Numerical feature: Evaluate potential thresholds for splitting
-                sorted_values = data[feature].sort_values().unique()
-                thresholds = (sorted_values[:-1] + sorted_values[1:]) / 2  # Midpoints as potential thresholds
+                mse, threshold = self.calculate_mse(data, target, feature)
+                mean_square_errors[feature] = {'mse': mse, 'threshold': threshold}
 
-                best_mse = np.inf
-                best_threshold = None
-                for threshold in thresholds:
-                    # Split data based on threshold
-                    left_target = target[data[feature] <= threshold]
-                    right_target = target[data[feature] > threshold]
+        best_feature = min(mean_square_errors, key=lambda f: mean_square_errors[f]['mse'])
+        best_mse = mean_square_errors[best_feature]['mse']
+        best_threshold = mean_square_errors[best_feature]['threshold']
 
-                    # Calculate MSE for each partition
-                    left_mse = np.mean((left_target - left_target.mean())**2) if len(left_target) > 0 else 0
-                    right_mse = np.mean((right_target - right_target.mean())**2) if len(right_target) > 0 else 0
-
-                    # Weighted average of the MSE for the two groups
-                    total_mse = (len(left_target) * left_mse + len(right_target) * right_mse) / (len(left_target) + len(right_target))
-
-                    if total_mse < best_mse:
-                        best_mse = total_mse
-                        best_threshold = threshold
-
-                mse_details[feature] = {'mse': best_mse, 'threshold': best_threshold}
-            else:
-                # Categorical feature: Evaluate splits based on each category
-                categories = data[feature].unique()
-
-                best_mse = np.inf
-                best_category = None
-                for category in categories:
-                    in_category_target = target[data[feature] == category]
-                    out_category_target = target[data[feature] != category]
-
-                    # Calculate MSE for in-category and out-of-category
-                    in_mse = np.mean((in_category_target - in_category_target.mean())**2) if len(in_category_target) > 0 else 0
-                    out_mse = np.mean((out_category_target - out_category_target.mean())**2) if len(out_category_target) > 0 else 0
-
-                    # Weighted average of the MSE
-                    total_mse = (len(in_category_target) * in_mse + len(out_category_target) * out_mse) / (len(in_category_target) + len(out_category_target))
-
-                    if total_mse < best_mse:
-                        best_mse = total_mse
-                        best_category = category
-
-                mse_details[feature] = {'mse': best_mse, 'category': best_category}
-
-        return mse_details
+        return best_feature, best_mse, best_threshold
     
     def select_feature_gain_ratio(self, features, labels):
         gain_ratios = self.calc_gain_ratio(labels, features)
@@ -157,15 +139,6 @@ class DecisionTree:
         
         # Return the best feature, its gain ratio, and threshold (if applicable)
         return best_feature, best_gain_ratio, best_threshold
-
-    def select_feature_mse(self, feature, labels):
-        
-        mean_square_errors = self.calculate_mse(feature, labels)
-        best_feature = min(mean_square_errors, key=lambda f: mean_square_errors[f]['mse']) 
-        best_mse = mean_square_errors[best_feature].get('mse')
-        best_threshold = mean_square_errors[best_feature].get('threshold')
-
-        return best_feature, best_mse, best_threshold
 
     def split_data(self, data, target, feature, threshold=None):
 
@@ -230,19 +203,86 @@ class DecisionTree:
         
         return node
     
-    def predict(self, test_instances):
-        # Check if test_instances is a DataFrame
-        if isinstance(test_instances, pd.DataFrame):
-            # Use DataFrame.apply() for vectorized row-wise operation
-            predictions = test_instances.apply(lambda row: self.traverse_tree(self.root, row), axis=1)
-            return predictions
-        else:
-            raise ValueError("Invalid input format for test_instances. Expected a DataFrame.")
+    def build_regression_tree(self, data, target, depth=0):
+        
+        # Check  a pure split or if the dataset is too small
+        if len(target.unique()) == 1 or data.empty or len(data.columns) == 0:
+            return DecisionTreeNode(value=target.mean(), is_leaf=True)
+        
+        best_feature, best_mse, best_threshold = self.select_feature_mse(data, target)
+        # print(best_feature, best_mse, best_threshold)
+        # If no valid split was found (indicated by None), or if the improvement is negligible
+        if best_feature is None or best_mse <= 0 or best_mse == float('inf'):
+            return DecisionTreeNode(value=target.mean(), is_leaf=True)
+        
+        subsets = self.split_data(data, target, best_feature, best_threshold)
 
-            
+        node = DecisionTreeNode(feature=best_feature, threshold=best_threshold)
+        
+        for subset_key, (subset_data, subset_target) in subsets.items():
+            # Recursively build the tree for each subset
+            child_node = self.build_regression_tree(subset_data, subset_target, depth + 1)
+            node.add_child(subset_key, child_node)
+        
+        return node
+    
+    def prune(self, node, validation_data):
+        """
+        Prune the tree recursively starting from the given node.
+        validation_data is a DataFrame used to evaluate pruning.
+        """
+        if node.is_leaf:
+            return
+
+        # Recursively attempt to prune child nodes first
+        for key, child in node.children.items():
+            self.prune(child, validation_data)
+
+        # Evaluate error before pruning this node
+        before_pruning_error = self.evaluate_error(validation_data)
+
+        # Temporarily make this node a leaf
+        original_children = node.children
+        node.children = {}
+        node.is_leaf = True
+        node.value = self.determine_leaf_value(validation_data)
+
+        # Evaluate error after pruning this node
+        after_pruning_error = self.evaluate_error(validation_data)
+
+        # Revert pruning if it increases error
+        if before_pruning_error <= after_pruning_error:
+            node.children = original_children
+            node.is_leaf = False
+        # Else, keep the node as a leaf and update its value based on validation data
+
+    def evaluate_error(self, data):
+        """
+        Evaluate the tree's error on the given dataset.
+        This should be implemented to handle both regression and classification error metrics.
+        """
+        predictions = self.predict(data.drop(columns=[self.config['target_column']]))
+        true_values = data[self.config['target_column']]
+
+        if self.config['task'] == 'regression':
+            return Evaluation().mean_squared_error(true_values,predictions)  # Mean Squared Error
+        elif self.config['task'] == 'classification':
+            return Evaluation().zero_one_loss(true_values,predictions) # (predictions != true_values).mean()  # Misclassification rate
+
+    def determine_leaf_value(self, data):
+        """
+        Determine the value of a leaf node based on the given data.
+        This should handle both regression and classification tasks.
+        """
+        if self.config['task'] == 'regression':
+            return data[self.config['target_column']].mean()
+        elif self.config['task'] == 'classification':
+            return data[self.config['target_column']].mode()[0]
+
     def traverse_tree(self, node, test_instance):
         if node.is_leaf:
             return node.value
+        
         # Check if the feature exists in the test instance and handle missing features gracefully
         if node.feature in test_instance and not pd.isnull(test_instance[node.feature]):
             if node.threshold is not None:  # Numerical feature
@@ -254,4 +294,18 @@ class DecisionTree:
                 next_node_key = test_instance[node.feature]
                 if next_node_key in node.children:
                     return self.traverse_tree(node.children[next_node_key], test_instance)
-        return "Unknown"  # For missing features or other edge cases
+        
+        # If the feature value is missing or if there's no child node, return the value of the current node
+        return node.value
+
+    def predict(self, test_instances):
+        # Check if test_instances is a DataFrame
+        if isinstance(test_instances, pd.DataFrame):
+            # Use DataFrame.apply() for vectorized row-wise operation
+            predictions = test_instances.apply(lambda row: self.traverse_tree(self.root, row), axis=1)
+            return predictions
+        else:
+            raise ValueError("Invalid input format for test_instances. Expected a DataFrame.")
+        
+
+    

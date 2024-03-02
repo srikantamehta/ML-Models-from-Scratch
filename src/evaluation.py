@@ -5,6 +5,40 @@ from scipy.stats import pearsonr
 class Evaluation:
 
     @staticmethod
+    def calculate_classification_scores(y_true, y_pred):
+        """
+        Calculate and return all classification scores.
+        
+        :param y_true: The ground truth labels.
+        :param y_pred: The predicted labels.
+        :return: A dictionary with zero-one loss, F1 score, precision, and recall.
+        """
+        scores = {
+            'zero_one_loss': Evaluation.zero_one_loss(y_true, y_pred),
+            'f1_score': Evaluation.f1_score(y_true, y_pred),
+            'precision': Evaluation.precision(y_true, y_pred),
+            'recall': Evaluation.recall(y_true, y_pred)
+        }
+        return scores
+
+    @staticmethod
+    def calculate_regression_scores(y_true, y_pred):
+        """
+        Calculate and return all regression scores.
+        
+        :param y_true: The ground truth values.
+        :param y_pred: The predicted values.
+        :return: A dictionary with MSE, MAE, R2, and Pearson correlation coefficient.
+        """
+        scores = {
+            'mse': Evaluation.mean_squared_error(y_true, y_pred),
+            'mae': Evaluation.mean_absolute_error(y_true, y_pred),
+            'r2': Evaluation.r2_coefficient(y_true, y_pred),
+            'pearson_correlation': Evaluation.pearsons_correlation(y_true, y_pred)
+        }
+        return scores
+
+    @staticmethod
     def zero_one_loss(y_true, y_pred):
         """
         Calculate the 0/1 loss for predictions.

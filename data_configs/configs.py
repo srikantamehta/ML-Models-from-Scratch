@@ -1,5 +1,6 @@
 albalone_config = {
     'name': 'Abalone',
+    'task': 'regression',
     'file_path': 'datasets/abalone.data',
     'separator': ',',  
     'column_names': [
@@ -20,6 +21,7 @@ albalone_config = {
 
 breast_cancer_config = {
     'name': 'Breast Cancer Wisconsin (Original)',
+    'task': 'classification',
     'file_path': 'datasets/breast-cancer-wisconsin.data',
     'separator': ',',  
     'column_names': [
@@ -41,6 +43,7 @@ breast_cancer_config = {
 
 car_config = {
     'name': 'Car Evaluation',
+    'task': 'classification',
     'file_path': 'datasets/car.data',
     'separator': ',',  
     'column_names': [
@@ -63,6 +66,7 @@ car_config = {
 
 forest_fires_config = {
     'name': 'Forest Fires',
+    'task': 'regression',
     'file_path': 'datasets/forestfires.data',  
     'separator': ',', 
     'column_names': [
@@ -85,6 +89,7 @@ forest_fires_config = {
 
 house_votes_84_config = {
     'name': 'House Votes 84',
+    'task': 'classification',
     'file_path': 'datasets/house-votes-84.data',  
     'separator': ',',  
     'column_names': [
@@ -110,6 +115,7 @@ house_votes_84_config = {
 
 machine_config = {
     'name': 'Relative CPU Performance',
+    'task': 'regression',
     'file_path': 'datasets/machine.data',
     'separator': ',', 
     'column_names': [
