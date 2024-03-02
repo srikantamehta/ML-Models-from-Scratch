@@ -23,11 +23,25 @@ class DecisionTreeNode:
 
 class DecisionTree:
 
-    def __init__(self, config) -> None:
+    def __init__(self, config, full_dataset=None) -> None:
         
         self.root = None
         self.config = config
+        self.all_categories = self.calculate_all_categories(full_dataset) if full_dataset is not None else {}
 
+    def calculate_all_categories(self, full_dataset):
+        """
+        Calculate all possible categories for each non-numerical column in the dataset,
+        using config['numerical_features'] to determine which columns are considered numerical.
+        """
+        all_categories = {}
+        # Determine categorical columns by excluding those listed as numerical in config
+        categorical_columns = [col for col in full_dataset.columns if col not in self.config['numerical_features'] and col != self.config['target_column']]
+        
+        for column in categorical_columns:
+            all_categories[column] = set(full_dataset[column].unique())
+        return all_categories
+    
     def calc_entropy(self, labels):
 
         labels_counts = labels.value_counts(normalize=True)
@@ -136,7 +150,7 @@ class DecisionTree:
         # Extract the best gain ratio and threshold for the best feature
         best_gain_ratio = gain_ratios[best_feature]['gain_ratio']
         best_threshold = gain_ratios[best_feature].get('threshold')  # Use .get() to safely handle absence of 'threshold'
-        
+
         # Return the best feature, its gain ratio, and threshold (if applicable)
         return best_feature, best_gain_ratio, best_threshold
 
@@ -210,7 +224,7 @@ class DecisionTree:
             return DecisionTreeNode(value=target.mean(), is_leaf=True)
         
         best_feature, best_mse, best_threshold = self.select_feature_mse(data, target)
-        # print(best_feature, best_mse, best_threshold)
+       
         # If no valid split was found (indicated by None), or if the improvement is negligible
         if best_feature is None or best_mse <= 0 or best_mse == float('inf'):
             return DecisionTreeNode(value=target.mean(), is_leaf=True)
@@ -279,24 +293,24 @@ class DecisionTree:
         elif self.config['task'] == 'classification':
             return data[self.config['target_column']].mode()[0]
 
-    def traverse_tree(self, node, test_instance):
+    def traverse_tree(self, node, test_instance, depth=0):
+        
         if node.is_leaf:
             return node.value
-        
-        # Check if the feature exists in the test instance and handle missing features gracefully
-        if node.feature in test_instance and not pd.isnull(test_instance[node.feature]):
-            if node.threshold is not None:  # Numerical feature
-                if test_instance[node.feature] <= node.threshold:
-                    return self.traverse_tree(node.children['left'], test_instance)
-                else:
-                    return self.traverse_tree(node.children['right'], test_instance)
-            else:  # Categorical feature, use the feature value directly
-                next_node_key = test_instance[node.feature]
-                if next_node_key in node.children:
-                    return self.traverse_tree(node.children[next_node_key], test_instance)
-        
-        # If the feature value is missing or if there's no child node, return the value of the current node
+
+        # Handle numerical features
+        if node.threshold is not None:
+            if test_instance[node.feature] <= node.threshold:
+                return self.traverse_tree(node.children['left'], test_instance, depth + 1)
+            else:
+                return self.traverse_tree(node.children['right'], test_instance, depth + 1)
+        else:  # Handle categorical features
+            next_node_key = test_instance[node.feature]
+            if next_node_key in node.children:
+                return self.traverse_tree(node.children[next_node_key], test_instance, depth + 1)
+
         return node.value
+
 
     def predict(self, test_instances):
         # Check if test_instances is a DataFrame
