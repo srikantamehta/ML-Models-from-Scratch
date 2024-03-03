@@ -448,6 +448,27 @@ class DecisionTree:
         return node
 
     def prune(self, node, validation_data):
+        """
+        Prunes the decision tree recursively to improve its generalization capabilities.
+        
+        This method attempts to prune the decision tree starting from the given node by evaluating
+        whether removing certain subtrees (making the current node a leaf) reduces the error on a
+        validation dataset. It works by first trying to prune the children nodes recursively and then
+        evaluating if converting the current node to a leaf node reduces the overall error.
+        
+        Parameters:
+            node (DecisionTreeNode): The current node being evaluated for pruning.
+            validation_data (pd.DataFrame): The validation dataset used to evaluate the impact of pruning.
+                This dataset should not have been used in the training phase.
+        
+        Returns:
+            None: This method modifies the tree in place and does not return any value.
+        
+        Note:
+            The method employs a validation dataset to decide whether pruning a particular node is beneficial.
+            It calculates the error before and after making a node a leaf to decide if the pruning should be kept.
+            If pruning increases the error, the change is reverted.
+        """
         if node.is_leaf:
             return
 
@@ -599,7 +620,3 @@ class DecisionTree:
             return predictions
         else:
             raise ValueError("Invalid input format for test_instances. Expected a DataFrame.")
-
-        
-
-    
