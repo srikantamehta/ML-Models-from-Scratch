@@ -5,16 +5,17 @@ from src.evaluation import Evaluation
 
 class DecisionTreeNode:
 
-    def __init__(self, feature=None, threshold=None, value=None, is_leaf=False, children=None):
+    def __init__(self, feature=None, threshold=None, value=None, is_leaf=False, children=None, parent=None):
         self.feature = feature  # Feature on which to split 
         self.threshold = threshold  # Threshold for the split if the feature is numerical
         self.value = value  # Prediction value (for leaf nodes)
         self.is_leaf = is_leaf  # Boolean flag indicating if the node is a leaf node
         self.children = children if children is not None else {}  # Children nodes
+        self.parent = parent
 
     def add_child(self, key, node):
-        
         self.children[key] = node
+        node.parent = self
 
     def set_leaf_value(self, value):
       
@@ -23,23 +24,17 @@ class DecisionTreeNode:
 
 class DecisionTree:
 
-    def __init__(self, config, full_dataset=None) -> None:
-        
+    def __init__(self, config, data) -> None:
         self.root = None
         self.config = config
-        self.all_categories = self.calculate_all_categories(full_dataset) if full_dataset is not None else {}
+        self.numeric_features = config['numeric_features']
+        self.categorical_features = [feat for feat in data.columns if feat not in self.numeric_features and feat != config['target_column']]
+        self.all_categories = self.extract_all_categories(data, self.categorical_features)
 
-    def calculate_all_categories(self, full_dataset):
-        """
-        Calculate all possible categories for each non-numerical column in the dataset,
-        using config['numerical_features'] to determine which columns are considered numerical.
-        """
+    def extract_all_categories(self, data, categorical_features):
         all_categories = {}
-        # Determine categorical columns by excluding those listed as numerical in config
-        categorical_columns = [col for col in full_dataset.columns if col not in self.config['numerical_features'] and col != self.config['target_column']]
-        
-        for column in categorical_columns:
-            all_categories[column] = set(full_dataset[column].unique())
+        for feature in categorical_features:
+            all_categories[feature] = data[feature].unique().tolist()
         return all_categories
     
     def calc_entropy(self, labels):
@@ -155,7 +150,6 @@ class DecisionTree:
         return best_feature, best_gain_ratio, best_threshold
 
     def split_data(self, data, target, feature, threshold=None):
-
         subsets = {}
 
         if threshold is not None:
@@ -173,12 +167,19 @@ class DecisionTree:
             subsets['right'] = (right_data, right_target)
         else:
             # Categorical split
-            for category in data[feature].unique():
-                category_mask = data[feature] == category
-                category_data = data[category_mask]
-                category_target = target[category_mask]
-
-                subsets[category] = (category_data, category_target)
+            # Ensure all categories for this feature are considered
+            all_feature_categories = self.all_categories[feature]
+            used_categories = data[feature].unique()
+            
+            for category in all_feature_categories:
+                if category in used_categories:
+                    category_mask = data[feature] == category
+                    category_data = data[category_mask]
+                    category_target = target[category_mask]
+                    subsets[category] = (category_data, category_target)
+                else:
+                    # If category is not present, carry the entire dataset down unchanged for this branch
+                    subsets[category] = (data.copy(), target.copy())
 
         return subsets
 
@@ -320,6 +321,7 @@ class DecisionTree:
             return predictions
         else:
             raise ValueError("Invalid input format for test_instances. Expected a DataFrame.")
+
         
 
     
