@@ -26,8 +26,7 @@ class DecisionTreeNode:
         Parameters:
             feature (str): The feature name on which to split. None for leaf nodes.
             threshold (float): The threshold for splitting if the feature is numerical. None for categorical features.
-            value: The value to predict if this is a leaf node. The nature of this value depends on the task
-                   (classification or regression).
+            value: The value to predict if this is a leaf node.
             is_leaf (bool): Indicates if this node is a leaf. Defaults to False.
             children (dict): A dictionary of children nodes. Defaults to an empty dict if None is provided.
             parent (DecisionTreeNode): The parent node. Defaults to None.
@@ -80,7 +79,7 @@ class DecisionTree:
         Parameters:
             config (dict): Configuration parameters for the decision tree. It must include 'numeric_features' (list of numeric feature names)
                            and 'target_column' (name of the target variable).
-            data (pd.DataFrame): The dataset used for building the decision tree. It should include both features and the target column.
+            data (pd.DataFrame): The dataset used for building the decision tree. 
         """
         self.root = None  # Initially, the tree has no nodes
         self.config = config  
@@ -129,10 +128,6 @@ class DecisionTree:
         """
         Calculates the gain ratio for each feature in the dataset, used for deciding the best feature to split on.
 
-        The gain ratio is an adjusted version of the information gain that takes into account the intrinsic value of a feature,
-        helping to prevent bias towards features with many categories in the case of categorical features and providing a
-        normalized measure of the effectiveness of a numerical feature's split.
-
         Parameters:
             labels (pd.Series): The target labels for the dataset.
             features (pd.DataFrame): The features of the dataset, from which the best feature to split on will be determined.
@@ -163,7 +158,7 @@ class DecisionTree:
                         for subset in [left_subset, right_subset]
                     ])
                     
-                    # Calculate the intrinsic value to penalize the split if it creates too many small partitions.
+                    # Calculate the intrinsic value.
                     intrinsic_value = sum([
                         -len(subset) / len(labels) * math.log2(len(subset) / len(labels)) 
                         if len(subset) > 0 else 0
@@ -276,10 +271,7 @@ class DecisionTree:
         Selects the feature with the highest gain ratio from a set of features.
 
         This method computes the gain ratio for each feature in the dataset to determine the best feature
-        to split on. The gain ratio is a measure that takes into account the intrinsic information of a feature,
-        aiming to balance the bias towards features with more categories. This method is particularly useful
-        in decision tree algorithms for selecting splits that provide the most information gain while considering
-        the distribution of the data.
+        to split on.
 
         Parameters:
             features (pd.DataFrame): The features of the dataset, from which the best feature to split on will be determined.
@@ -349,8 +341,6 @@ class DecisionTree:
                 category_target = target[category_mask]
                 # Assign each subset of data and target values to the corresponding category key.
                 subsets[category] = (category_data, category_target) if category in used_categories else (data.copy(), target.copy())
-                # The last condition ensures that even categories not present in the current split (due to data filtering in previous steps)
-                # are included with a default dataset, maintaining the structure of the decision tree.
 
         return subsets
 
@@ -360,8 +350,7 @@ class DecisionTree:
 
         This method recursively splits the data based on the feature that provides the highest gain ratio until
         it reaches a condition where no further splitting is beneficial or possible. The recursion stops when
-        all data in a node belong to the same class (pure node), there are no features left to split on, or
-        the split does not improve the gain ratio.
+        all data in a node belong to the same class (pure node), there are no features left to split on.
 
         Parameters:
             data (pd.DataFrame): The dataset used for building the decision tree, containing the features.
@@ -410,8 +399,7 @@ class DecisionTree:
 
         This method recursively splits the data based on the feature and threshold that minimize the mean squared error (MSE)
         until it reaches a condition where no further splitting is beneficial or possible. The recursion stops when all
-        data in a node have the same value, the dataset is too small, there are no features left to split on, or the split
-        does not improve the MSE.
+        data in a node have the same value, the dataset is too small, there are no features left to split on.
 
         Parameters:
             data (pd.DataFrame): The dataset used for building the regression tree, containing the features.
@@ -451,11 +439,6 @@ class DecisionTree:
         """
         Prunes the decision tree recursively to improve its generalization capabilities.
         
-        This method attempts to prune the decision tree starting from the given node by evaluating
-        whether removing certain subtrees (making the current node a leaf) reduces the error on a
-        validation dataset. It works by first trying to prune the children nodes recursively and then
-        evaluating if converting the current node to a leaf node reduces the overall error.
-        
         Parameters:
             node (DecisionTreeNode): The current node being evaluated for pruning.
             validation_data (pd.DataFrame): The validation dataset used to evaluate the impact of pruning.
@@ -463,11 +446,6 @@ class DecisionTree:
         
         Returns:
             None: This method modifies the tree in place and does not return any value.
-        
-        Note:
-            The method employs a validation dataset to decide whether pruning a particular node is beneficial.
-            It calculates the error before and after making a node a leaf to decide if the pruning should be kept.
-            If pruning increases the error, the change is reverted.
         """
         if node.is_leaf:
             return
@@ -523,7 +501,7 @@ class DecisionTree:
         # Check if the dataset is empty
         if data.empty or len(data[self.config['target_column']]) == 0:
             # Returning infinity to signify that pruning or splitting on an empty dataset does not provide any benefit.
-            return float('inf')  # Example: Return infinity to indicate no improvement by pruning
+            return float('inf')  
 
         # Generate predictions for the dataset excluding the target column.
         predictions = self.predict(data.drop(columns=[self.config['target_column']]))
@@ -596,23 +574,33 @@ class DecisionTree:
         # Fallback to the current node's value if the path cannot be followed (e.g., missing feature value).
         return node.value
     
-    def traverse_tree_verbose(self, node, test_instance, depth=0, traversal_path=""):
+        
+    def predict(self, test_instances):
         """
-        Traverses the decision tree to predict the output for a given test instance and returns the traversal path.
+        Predicts the target values for each instance in the test dataset.
 
-        This method recursively traverses the tree starting from the given node (typically the root),
-        following the path determined by the feature values of the test instance until it reaches a leaf node,
-        at which point it returns the traversal path along with the prediction value associated with that leaf.
+        This method applies the decision tree to each instance in the test dataset to make predictions.
+        It relies on the `traverse_tree` method to navigate the tree for each instance.
 
         Parameters:
-            node (DecisionTreeNode): The current node in the tree being traversed.
-            test_instance (pd.Series): A single instance from the test dataset for which the prediction is being made.
-            depth (int): The current depth in the tree. Default is 0 for the root node.
-            traversal_path (str): The accumulated traversal path so far. Default is an empty string.
+            test_instances (pd.DataFrame): The test dataset containing instances for prediction.
 
         Returns:
-            str: The traversal path along with the prediction value of the leaf node that the test instance falls into.
+            pd.Series: A series of predicted values corresponding to each test instance.
+
+        Raises:
+            ValueError: If the input format of test_instances is not a pandas DataFrame.
         """
+        # Check if test_instances is a DataFrame
+        if isinstance(test_instances, pd.DataFrame):
+            # Use DataFrame.apply() for vectorized row-wise operation
+            predictions = test_instances.apply(lambda row: self.traverse_tree(self.root, row), axis=1)
+            return predictions
+        else:
+            raise ValueError("Invalid input format for test_instances. Expected a DataFrame.")
+        
+    def traverse_tree_verbose(self, node, test_instance, depth=0, traversal_path=""):
+    
         indent = "  " * depth  # Indentation for visualizing the depth level
 
         if node.is_leaf:
@@ -636,23 +624,9 @@ class DecisionTree:
             else:
                 traversal_path += f"{indent}Value {next_node_key} not found among children, fallback to current node's value: {node.value}\n"
                 return traversal_path
-   
+    
     def predict_verbose(self, test_instances):
-        """
-        Predicts the target values for each instance in the test dataset.
-
-        This method applies the decision tree to each instance in the test dataset to make predictions.
-        It relies on the `traverse_tree_verbose` method to navigate the tree for each instance.
-
-        Parameters:
-            test_instances (pd.DataFrame): The test dataset containing instances for prediction.
-
-        Returns:
-            pd.Series: A series of predicted values corresponding to each test instance.
-
-        Raises:
-            ValueError: If the input format of test_instances is not a pandas DataFrame.
-        """
+        
         # Check if test_instances is a DataFrame
         if isinstance(test_instances, pd.DataFrame):
             # Use DataFrame.apply() for vectorized row-wise operation
@@ -664,30 +638,6 @@ class DecisionTree:
                     print(line)
                 print()  # Add an extra line break between predictions
             
-            return predictions
-        else:
-            raise ValueError("Invalid input format for test_instances. Expected a DataFrame.")
-        
-    def predict(self, test_instances):
-        """
-        Predicts the target values for each instance in the test dataset.
-
-        This method applies the decision tree to each instance in the test dataset to make predictions.
-        It relies on the `traverse_tree` method to navigate the tree for each instance.
-
-        Parameters:
-            test_instances (pd.DataFrame): The test dataset containing instances for prediction.
-
-        Returns:
-            pd.Series: A series of predicted values corresponding to each test instance.
-
-        Raises:
-            ValueError: If the input format of test_instances is not a pandas DataFrame.
-        """
-        # Check if test_instances is a DataFrame
-        if isinstance(test_instances, pd.DataFrame):
-            # Use DataFrame.apply() for vectorized row-wise operation
-            predictions = test_instances.apply(lambda row: self.traverse_tree(self.root, row), axis=1)
             return predictions
         else:
             raise ValueError("Invalid input format for test_instances. Expected a DataFrame.")
