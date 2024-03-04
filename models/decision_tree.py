@@ -271,7 +271,7 @@ class DecisionTree:
 
         return best_feature, best_mse, best_threshold
     
-    def select_feature_gain_ratio(self, features, labels):
+    def select_feature_gain_ratio(self, labels, features):
         """
         Selects the feature with the highest gain ratio from a set of features.
 
@@ -380,7 +380,7 @@ class DecisionTree:
             return DecisionTreeNode(value=target.mode().iloc[0], is_leaf=True)
         
         # Select the best feature for splitting based on the highest gain ratio
-        best_feature, best_gain_ratio, best_threshold = self.select_feature_gain_ratio(data, target)
+        best_feature, best_gain_ratio, best_threshold = self.select_feature_gain_ratio(target, data)
         
         # If no informative gain is found, return a leaf node with the most common target value
         if best_gain_ratio <= 0:
@@ -595,8 +595,79 @@ class DecisionTree:
 
         # Fallback to the current node's value if the path cannot be followed (e.g., missing feature value).
         return node.value
+    
+    def traverse_tree_verbose(self, node, test_instance, depth=0, traversal_path=""):
+        """
+        Traverses the decision tree to predict the output for a given test instance and returns the traversal path.
 
+        This method recursively traverses the tree starting from the given node (typically the root),
+        following the path determined by the feature values of the test instance until it reaches a leaf node,
+        at which point it returns the traversal path along with the prediction value associated with that leaf.
 
+        Parameters:
+            node (DecisionTreeNode): The current node in the tree being traversed.
+            test_instance (pd.Series): A single instance from the test dataset for which the prediction is being made.
+            depth (int): The current depth in the tree. Default is 0 for the root node.
+            traversal_path (str): The accumulated traversal path so far. Default is an empty string.
+
+        Returns:
+            str: The traversal path along with the prediction value of the leaf node that the test instance falls into.
+        """
+        indent = "  " * depth  # Indentation for visualizing the depth level
+
+        if node.is_leaf:
+            traversal_path += f"{indent}Reached leaf node with prediction: {node.value}\n"
+            return traversal_path
+
+        if node.threshold is not None:
+            traversal_path += f"{indent}Decision node at depth {depth}: {node.feature} <= {node.threshold}?\n"
+            if test_instance[node.feature] <= node.threshold:
+                traversal_path += f"{indent}Yes, proceed to left child...\n"
+                return self.traverse_tree_verbose(node.children['left'], test_instance, depth + 1, traversal_path)
+            else:
+                traversal_path += f"{indent}No, proceed to right child...\n"
+                return self.traverse_tree_verbose(node.children['right'], test_instance, depth + 1, traversal_path)
+        else:
+            traversal_path += f"{indent}Decision node at depth {depth}: {node.feature} == {test_instance[node.feature]}?\n"
+            next_node_key = test_instance[node.feature]
+            if next_node_key in node.children:
+                traversal_path += f"{indent}Proceeding to child node for value: {next_node_key}\n"
+                return self.traverse_tree_verbose(node.children[next_node_key], test_instance, depth + 1, traversal_path)
+            else:
+                traversal_path += f"{indent}Value {next_node_key} not found among children, fallback to current node's value: {node.value}\n"
+                return traversal_path
+   
+    def predict_verbose(self, test_instances):
+        """
+        Predicts the target values for each instance in the test dataset.
+
+        This method applies the decision tree to each instance in the test dataset to make predictions.
+        It relies on the `traverse_tree_verbose` method to navigate the tree for each instance.
+
+        Parameters:
+            test_instances (pd.DataFrame): The test dataset containing instances for prediction.
+
+        Returns:
+            pd.Series: A series of predicted values corresponding to each test instance.
+
+        Raises:
+            ValueError: If the input format of test_instances is not a pandas DataFrame.
+        """
+        # Check if test_instances is a DataFrame
+        if isinstance(test_instances, pd.DataFrame):
+            # Use DataFrame.apply() for vectorized row-wise operation
+            predictions = test_instances.apply(lambda row: self.traverse_tree_verbose(self.root, row), axis=1)
+            
+            # Print the predictions
+            for pred in predictions:
+                for line in pred.split("\n"):
+                    print(line)
+                print()  # Add an extra line break between predictions
+            
+            return predictions
+        else:
+            raise ValueError("Invalid input format for test_instances. Expected a DataFrame.")
+        
     def predict(self, test_instances):
         """
         Predicts the target values for each instance in the test dataset.
@@ -620,3 +691,31 @@ class DecisionTree:
             return predictions
         else:
             raise ValueError("Invalid input format for test_instances. Expected a DataFrame.")
+        
+    def print_tree(self, node=None, depth=0, prefix="Root"):
+        """
+        Recursively prints the structure of the decision tree starting from the given node.
+
+        Parameters:
+            node (DecisionTreeNode): The current node to print. If None, starts from the root.
+            depth (int): The current depth in the tree, used for indentation. Default is 0 for the root.
+            prefix (str): The prefix label to show before printing the node's details. Default is "Root".
+        """
+        if node is None:
+            node = self.root
+
+        indent = "  " * depth  # Indentation based on the depth of the node.
+        if node.is_leaf:
+            print(f"{indent}{prefix} - Leaf, value: {node.value}")
+        else:
+            if node.threshold is not None:
+                # For numerical features
+                print(f"{indent}{prefix} - Decision: {node.feature} <= {node.threshold}")
+            else:
+                # For categorical features (assuming children keys are the category values)
+                print(f"{indent}{prefix} - Decision: {node.feature}")
+
+            # Recursively print children nodes
+            for key, child in node.children.items():
+                child_prefix = f"{node.feature} {key if node.threshold is None else ('<= ' if key == 'left' else '> ')} {node.threshold if node.threshold is not None else ''}"
+                self.print_tree(child, depth + 1, prefix=child_prefix)
