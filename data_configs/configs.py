@@ -32,7 +32,7 @@ breast_cancer_config = {
     'has_header': False,
     'target_column': 'Class',
     'missing_values': '?',  
-    'nominal_features': ['Sample code number'],  
+    'nominal_features': ['Sample code number','Class'],  
     'ordinal_features': {},  
     'numeric_features': [
         'Clump Thickness', 'Uniformity of Cell Size', 'Uniformity of Cell Shape',
