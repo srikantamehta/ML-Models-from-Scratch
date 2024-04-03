@@ -151,6 +151,14 @@ class FeedForwardNetwork:
         self.b_hidden_2 = np.zeros((1, n_hidden_2))
         self.b_output = np.zeros((1, n_output))
 
+        self.best_W_hidden_1 = np.random.rand(n_input,n_hidden_1)/100
+        self.best_W_hidden_2 = np.random.rand(n_hidden_1,n_hidden_2)/100
+        self.best_W_output = np.random.rand(n_hidden_2,n_output)/100
+
+        self.best_b_hidden_1 = np.zeros((1, n_hidden_1))
+        self.best_b_hidden_2 = np.zeros((1, n_hidden_2))
+        self.best_b_output = np.zeros((1, n_output))
+
     def forward_pass(self, X):
         # First hidden layer
         Z1 = np.dot(X, self.W_hidden_1) + self.b_hidden_1
@@ -250,6 +258,13 @@ class FeedForwardNetwork:
             if val_metric < best_val_metric:
                 best_val_metric = val_metric
                 patience_counter = 0  # Reset counter if there's an improvement
+                self.best_W_hidden_1 = self.W_hidden_1.copy()
+                self.best_W_hidden_2 = self.W_hidden_2.copy()
+                self.best_W_output = self.W_output.copy()
+                self.best_b_hidden_1 = self.b_hidden_1.copy()
+                self.best_b_hidden_2 = self.b_hidden_2.copy()
+                self.best_b_output = self.b_output.copy()
+
             else:
                 patience_counter += 1  # Increment counter if no improvement
 
@@ -258,6 +273,14 @@ class FeedForwardNetwork:
                 print(f"No improvement in validation metric for {patience} epochs, stopping training.")
                 break
 
+        # After training, set weights to the best found if early stopping was used
+        self.W_hidden_1 = self.best_W_hidden_1
+        self.W_hidden_2 = self.best_W_hidden_2
+        self.W_output = self.best_W_output
+        self.b_hidden_1 = self.best_b_hidden_1
+        self.b_hidden_2 = self.best_b_hidden_2
+        self.b_output = self.best_b_output
+         
         # Final metric evaluation
         if self.n_output == 1:
             final_metric = train_metric
@@ -268,3 +291,76 @@ class FeedForwardNetwork:
             
         return metrics, val_metrics, final_metric
 
+class AutoEncoder:
+
+    def __init__(self, config, n_input, n_encoder) -> None:
+        self.config = config
+        
+        self.W_encoder = np.random.rand(n_input,n_encoder)/100
+        self.W_decoder = np.random.rand(n_encoder,n_input)/100
+
+        # Bias vectors initialization
+        self.b_encoder = np.zeros((1, n_encoder))
+        self.b_decoder = np.zeros((1, n_input))
+    
+    @staticmethod
+    def sigmoid(X):
+        # Clip X to avoid overflow in exp, and underflow in 1 - exp(-X) for negative inputs
+        X_clipped = np.clip(X, -50, 50)
+        return 1 / (1 + np.exp(-X_clipped))
+    
+    def forward_pass(self, X):
+        # Encoder layer
+        Z1 = np.dot(X, self.W_encoder) + self.b_encoder
+        A1 = self.sigmoid(Z1)  # Activation function
+
+        # Decoder layer
+        A_output = np.dot(A1, self.W_decoder) + self.b_decoder
+        
+        return A1, A_output
+    
+    def backpropagation(self, X, lr):
+        # Forward pass
+        A1, A_output = self.forward_pass(X)
+
+        # Output layer error (delta)
+        error_decoder = A_output - X
+        dW_decoder = np.dot(A1.T, error_decoder)
+        db_decoder = np.sum(error_decoder, axis=0)
+        
+        # Second hidden layer error (delta)
+        error_encoder = np.dot(error_decoder, self.W_decoder.T) * A1 * (1 - A1) 
+        dW_encoder = np.dot(X.T, error_encoder)
+        db_encoder = np.sum(error_encoder, axis=0)
+        
+        # Update weights and biases
+        self.W_decoder -= lr * dW_decoder
+        self.b_decoder -= lr * db_decoder
+        self.W_encoder -= lr * dW_encoder
+        self.b_encoder -= lr * db_encoder
+
+    def train(self, X_train, max_epochs=1000, lr=0.0001, patience=100):
+
+        best_loss = np.inf
+        patience_counter = 0
+
+        for epoch in range(max_epochs):
+
+            self.backpropagation(X_train, lr)
+
+            _, A_output = self.forward_pass(X_train)
+
+            error = A_output - X_train
+            loss = np.mean(error**2)
+
+            
+            print(f"Epoch {epoch}/{max_epochs}, Loss: {loss}")
+
+            if loss < best_loss:
+                best_loss = loss
+                patience_counter = 0
+            else:
+                patience_counter += 1
+                if patience_counter > patience:
+                    break
+        
