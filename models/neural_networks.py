@@ -75,8 +75,8 @@ class LinearNetwork(BaseNetwork):
                 print(f"No improvement in validation loss for {patience} epochs, stopping training.")
                 break
             
-            if epoch % 100 == 0:
-                print(f"Epoch {epoch}/{epochs}, Training Loss: {loss}, Validation Loss: {val_loss}")
+            # if epoch % 100 == 0:
+            #     print(f"Epoch {epoch}/{epochs}, Training Loss: {loss}, Validation Loss: {val_loss}")
         
         return losses, val_losses
 
@@ -123,8 +123,8 @@ class LinearNetwork(BaseNetwork):
                 print(f"No improvement in validation MSE for {patience} epochs, stopping training.")
                 break
             
-            if epoch % 100 == 0:
-                print(f"Epoch {epoch}/{epochs}, Training MSE: {train_MSE}, Validation MSE: {val_MSE}")
+            # if epoch % 100 == 0:
+            #     print(f"Epoch {epoch}/{epochs}, Training MSE: {train_MSE}, Validation MSE: {val_MSE}")
         
         return train_MSEs, val_MSEs
 
@@ -249,12 +249,12 @@ class FeedForwardNetwork(BaseNetwork):
             metrics.append(train_metric)
             val_metrics.append(val_metric)
 
-            # Print progress
-            if epoch % 100 == 0:
-                if self.n_output == 1:
-                    print(f"Epoch {epoch}/{epochs}, Train MSE: {train_metric}, Val MSE: {val_metric}")
-                else:
-                    print(f"Epoch {epoch}/{epochs}, Train Loss: {train_metric}, Val Loss: {val_metric}")
+            # # Print progress
+            # if epoch % 100 == 0:
+            #     if self.n_output == 1:
+            #         print(f"Epoch {epoch}/{epochs}, Train MSE: {train_metric}, Val MSE: {val_metric}")
+            #     else:
+            #         print(f"Epoch {epoch}/{epochs}, Train Loss: {train_metric}, Val Loss: {val_metric}")
 
             # Check for improvement
             if val_metric < best_val_metric:
@@ -289,7 +289,7 @@ class FeedForwardNetwork(BaseNetwork):
         else:
             # After the final epoch, calculate the final accuracy for classification
             final_metric = self.calculate_accuracy(y_train, A_output)
-            print(f"Final Accuracy: {final_metric}")
+            # print(f"Final Accuracy: {final_metric}")
             
         return metrics, val_metrics, final_metric
 
@@ -351,7 +351,7 @@ class AutoEncoder(BaseNetwork):
             loss = np.mean(error**2)
 
             
-            print(f"Epoch {epoch}/{max_epochs}, Loss: {loss}")
+            # print(f"Epoch {epoch}/{max_epochs}, Loss: {loss}")
 
             if loss < best_loss:
                 best_loss = loss
@@ -459,11 +459,11 @@ class CombinedModel(BaseNetwork):
             val_metrics.append(val_metric)
 
             # Print progress
-            if epoch % 100 == 0:
-                if self.n_output == 1:
-                    print(f"Epoch {epoch}/{epochs}, Train MSE: {train_metric}, Val MSE: {val_metric}")
-                else:
-                    print(f"Epoch {epoch}/{epochs}, Train Loss: {train_metric}, Val Loss: {val_metric}")
+            # if epoch % 100 == 0:
+            #     if self.n_output == 1:
+            #         print(f"Epoch {epoch}/{epochs}, Train MSE: {train_metric}, Val MSE: {val_metric}")
+            #     else:
+            #         print(f"Epoch {epoch}/{epochs}, Train Loss: {train_metric}, Val Loss: {val_metric}")
 
             # Check for improvement
             if val_metric < best_val_metric:
@@ -498,6 +498,6 @@ class CombinedModel(BaseNetwork):
         else:
             # After the final epoch, calculate the final accuracy for classification
             final_metric = self.calculate_accuracy(y_train, A_output)
-            print(f"Final Accuracy: {final_metric}")
+            # print(f"Final Accuracy: {final_metric}")
             
         return metrics, val_metrics, final_metric
