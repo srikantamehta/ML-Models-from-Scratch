@@ -1,23 +1,36 @@
 import numpy as np
 
-class LinearNetwork:
-
-    def __init__(self, config) -> None:
-        self.config = config
-        self.W = None
-
+class BaseNetwork:
     @staticmethod
     def softmax(z):
         exp_scores = np.exp(z)
-        probs = exp_scores/np.sum(exp_scores, axis=1, keepdims=True)
+        probs = exp_scores / np.sum(exp_scores, axis=1, keepdims=True)
         return probs
-    
+
     @staticmethod
     def cross_entropy_loss(y, probs):
-        # Compute the cross-entropy loss
         N = y.shape[0]
         cross_entropy_loss = -np.sum(y * np.log(probs)) / N
         return cross_entropy_loss
+
+    @staticmethod
+    def sigmoid(X):
+        X_clipped = np.clip(X, -50, 50)
+        return 1 / (1 + np.exp(-X_clipped))
+    
+    @staticmethod
+    def calculate_accuracy(y_true, y_pred):
+        true_labels = np.argmax(y_true, axis=1)
+        predicted_labels = np.argmax(y_pred, axis=1)
+        accuracy = np.mean(predicted_labels == true_labels)
+        return accuracy
+
+class LinearNetwork(BaseNetwork):
+
+    def __init__(self, config) -> None:
+        super().__init__()
+        self.config = config
+        self.W = None
     
     def logistic_regression(self, X_train, y_train, X_val, y_val, epochs=1000, lr=0.01, patience=np.inf):
         # Add bias
@@ -136,9 +149,16 @@ class LinearNetwork:
         
         return predictions
     
-class FeedForwardNetwork:
+class FeedForwardNetwork(BaseNetwork):
 
-    def __init__(self, config, n_input, n_hidden_1, n_hidden_2, n_output) -> None:
+    def __init__(self,
+                    config,
+                    n_input,
+                    n_hidden_1,
+                    n_hidden_2,
+                    n_output) -> None:
+        
+        super().__init__()
         self.config = config
         self.n_output = n_output
 
@@ -204,27 +224,6 @@ class FeedForwardNetwork:
         self.b_hidden_2 -= lr * db_hidden_2
         self.W_hidden_1 -= lr * dW_hidden_1
         self.b_hidden_1 -= lr * db_hidden_1
-
-    @staticmethod
-    def cross_entropy_loss(y, probs):
-        # Compute the cross-entropy loss
-        N = y.shape[0]
-        cross_entropy_loss = -np.sum(y * np.log(probs)) / N
-        return cross_entropy_loss
-    
-    @staticmethod
-    def softmax(z):
-        exp_scores = np.exp(z)
-        probs = exp_scores/np.sum(exp_scores, axis=1, keepdims=True)
-        return probs
-    
-    @staticmethod
-    def calculate_accuracy(y_true, y_pred):
-        # Assuming y_true is one-hot encoded
-        true_labels = np.argmax(y_true, axis=1)
-        predicted_labels = np.argmax(y_pred, axis=1)
-        accuracy = np.mean(predicted_labels == true_labels)
-        return accuracy
     
     def train(self, X_train, y_train, X_val, y_val, epochs, lr, patience=np.inf):
         metrics = []
@@ -252,7 +251,10 @@ class FeedForwardNetwork:
 
             # Print progress
             if epoch % 100 == 0:
-                print(f"Epoch {epoch}/{epochs}, Train MSE: {train_metric}, Val MSE: {val_metric}")
+                if self.n_output == 1:
+                    print(f"Epoch {epoch}/{epochs}, Train MSE: {train_metric}, Val MSE: {val_metric}")
+                else:
+                    print(f"Epoch {epoch}/{epochs}, Train Loss: {train_metric}, Val Loss: {val_metric}")
 
             # Check for improvement
             if val_metric < best_val_metric:
@@ -291,23 +293,18 @@ class FeedForwardNetwork:
             
         return metrics, val_metrics, final_metric
 
-class AutoEncoder:
+class AutoEncoder(BaseNetwork):
 
     def __init__(self, config, n_input, n_encoder) -> None:
+        super().__init__()
         self.config = config
-        
+        self.n_encoder = n_encoder
         self.W_encoder = np.random.rand(n_input,n_encoder)/100
         self.W_decoder = np.random.rand(n_encoder,n_input)/100
 
         # Bias vectors initialization
         self.b_encoder = np.zeros((1, n_encoder))
         self.b_decoder = np.zeros((1, n_input))
-    
-    @staticmethod
-    def sigmoid(X):
-        # Clip X to avoid overflow in exp, and underflow in 1 - exp(-X) for negative inputs
-        X_clipped = np.clip(X, -50, 50)
-        return 1 / (1 + np.exp(-X_clipped))
     
     def forward_pass(self, X):
         # Encoder layer
@@ -339,7 +336,7 @@ class AutoEncoder:
         self.W_encoder -= lr * dW_encoder
         self.b_encoder -= lr * db_encoder
 
-    def train(self, X_train, max_epochs=1000, lr=0.0001, patience=100):
+    def train(self, X_train, max_epochs=1000, lr=0.0001, patience=np.inf):
 
         best_loss = np.inf
         patience_counter = 0
@@ -363,4 +360,144 @@ class AutoEncoder:
                 patience_counter += 1
                 if patience_counter > patience:
                     break
+
+class CombinedModel(BaseNetwork):
+
+    def __init__(self, autoencoder, n_hidden_2, n_output) -> None:
+
+        super().__init__()
+        self.autoencoder = autoencoder
+        self.n_output = n_output
+
+        # Use .copy() to create copies of the encoder's weights and biases
+        self.W_hidden_1 = autoencoder.W_encoder.copy()
+        self.b_hidden_1 = autoencoder.b_encoder.copy()
+
+        # Initialize additional layers for the new task
+        self.W_hidden_2 = np.random.rand(autoencoder.n_encoder, n_hidden_2) / 100
+        self.b_hidden_2 = np.zeros((1, n_hidden_2))
+        self.W_output = np.random.rand(n_hidden_2, n_output) / 100
+        self.b_output = np.zeros((1, n_output))
+
+        # Optionally, prepare to track the best model state
+        self.best_W_hidden_1 = self.W_hidden_1.copy()
+        self.best_W_hidden_2 = self.W_hidden_2.copy()
+        self.best_W_output = self.W_output.copy()
+        self.best_b_hidden_1 = self.b_hidden_1.copy()
+        self.best_b_hidden_2 = self.b_hidden_2.copy()
+        self.best_b_output = self.b_output.copy()
+    
+    def forward_pass(self, X):
+
+        # First hidden layer
+        Z1 = np.dot(X, self.W_hidden_1) + self.b_hidden_1
+        A1 = self.sigmoid(Z1)  # Activation function
+
+        # Second hidden layer
+        Z2 = np.dot(A1, self.W_hidden_2) + self.b_hidden_2
+        A2 = np.tanh(Z2)  # Activation function
+
+        # Output layer
+        Z_output = np.dot(A2, self.W_output) + self.b_output
+
+        if self.n_output == 1:
+            A_output = Z_output
+        else:
+            A_output = self.softmax(Z_output) 
+
+        return A1, A2, A_output   
+    
+    def backpropagation(self, X, y_true, lr):
+        # Forward pass
+        A1, A2, A_output = self.forward_pass(X)
+
+        # Output layer error (delta)
+        error_output = A_output - y_true 
+        dW_output = np.dot(A2.T, error_output)
+        db_output = np.sum(error_output, axis=0)
         
+        # Second hidden layer error (delta)
+        error_hidden_2 = np.dot(error_output, self.W_output.T) * (1 - np.power(A2, 2))  # Derivative of tanh is (1 - tanh^2)
+        dW_hidden_2 = np.dot(A1.T, error_hidden_2)
+        db_hidden_2 = np.sum(error_hidden_2, axis=0)
+        
+        # First hidden layer error (delta)
+        error_hidden_1 = np.dot(error_hidden_2, self.W_hidden_2.T) * A1 * (1 - A1) 
+        dW_hidden_1 = np.dot(X.T, error_hidden_1)
+        db_hidden_1 = np.sum(error_hidden_1, axis=0)
+        
+        # Update weights and biases
+        self.W_output -= lr * dW_output
+        self.b_output -= lr * db_output
+        self.W_hidden_2 -= lr * dW_hidden_2
+        self.b_hidden_2 -= lr * db_hidden_2
+        self.W_hidden_1 -= lr * dW_hidden_1
+        self.b_hidden_1 -= lr * db_hidden_1
+
+    def train(self, X_train, y_train, X_val, y_val, epochs, lr, patience=np.inf):
+        metrics = []
+        val_metrics = []
+        best_val_metric = np.inf
+        patience_counter = 0  # Counts the epochs since the last improvement in validation metric
+
+        for epoch in range(epochs):
+            self.backpropagation(X_train, y_train, lr)
+        
+            _, _, A_output = self.forward_pass(X_train)
+            _, _, val_output = self.forward_pass(X_val)
+
+            if self.n_output == 1:
+                # Compute MSE for training and validation sets
+                train_metric = np.mean((y_train - A_output)**2)
+                val_metric = np.mean((y_val - val_output)**2)
+            else: 
+                # Compute the loss for training and validation sets
+                train_metric = self.cross_entropy_loss(y_train, A_output)
+                val_metric = self.cross_entropy_loss(y_val, val_output)
+
+            metrics.append(train_metric)
+            val_metrics.append(val_metric)
+
+            # Print progress
+            if epoch % 100 == 0:
+                if self.n_output == 1:
+                    print(f"Epoch {epoch}/{epochs}, Train MSE: {train_metric}, Val MSE: {val_metric}")
+                else:
+                    print(f"Epoch {epoch}/{epochs}, Train Loss: {train_metric}, Val Loss: {val_metric}")
+
+            # Check for improvement
+            if val_metric < best_val_metric:
+                best_val_metric = val_metric
+                patience_counter = 0  # Reset counter if there's an improvement
+                self.best_W_hidden_1 = self.W_hidden_1.copy()
+                self.best_W_hidden_2 = self.W_hidden_2.copy()
+                self.best_W_output = self.W_output.copy()
+                self.best_b_hidden_1 = self.b_hidden_1.copy()
+                self.best_b_hidden_2 = self.b_hidden_2.copy()
+                self.best_b_output = self.b_output.copy()
+
+            else:
+                patience_counter += 1  # Increment counter if no improvement
+
+            # Stop training if patience is exceeded
+            if patience_counter > patience:
+                print(f"No improvement in validation metric for {patience} epochs, stopping training.")
+                break
+
+        # After training, set weights to the best found if early stopping was used
+        self.W_hidden_1 = self.best_W_hidden_1
+        self.W_hidden_2 = self.best_W_hidden_2
+        self.W_output = self.best_W_output
+        self.b_hidden_1 = self.best_b_hidden_1
+        self.b_hidden_2 = self.best_b_hidden_2
+        self.b_output = self.best_b_output
+         
+        # Final metric evaluation
+        if self.n_output == 1:
+            final_metric = train_metric
+        else:
+            # After the final epoch, calculate the final accuracy for classification
+            final_metric = self.calculate_accuracy(y_train, A_output)
+            print(f"Final Accuracy: {final_metric}")
+            
+        return metrics, val_metrics, final_metric

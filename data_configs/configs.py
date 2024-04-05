@@ -52,7 +52,7 @@ car_config = {
     'has_header': False,
     'target_column': 'Class',
     'missing_values': None,
-    'nominal_features': [],  
+    'nominal_features': ['Class'],  
     'ordinal_features': {
         'buying': ['vhigh', 'high', 'med', 'low'],  
         'maint': ['vhigh', 'high', 'med', 'low'],  
@@ -103,7 +103,7 @@ house_votes_84_config = {
     'target_column': 'Class Name',
     'missing_values': None,  
     'nominal_features': [
-        'handicapped-infants', 'water-project-cost-sharing', 
+        'Class Name', 'handicapped-infants', 'water-project-cost-sharing', 
         'adoption-of-the-budget-resolution', 'physician-fee-freeze', 'el-salvador-aid', 
         'religious-groups-in-schools', 'anti-satellite-test-ban', 'aid-to-nicaraguan-contras', 
         'mx-missile', 'immigration', 'synfuels-corporation-cutback', 'education-spending', 
