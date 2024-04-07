@@ -72,7 +72,7 @@ class LinearNetwork(BaseNetwork):
                 patience_counter += 1
             
             if patience_counter > patience:
-                print(f"No improvement in validation loss for {patience} epochs, stopping training.")
+                # print(f"No improvement in validation loss for {patience} epochs, stopping training.")
                 break
             
             # if epoch % 100 == 0:
@@ -120,7 +120,7 @@ class LinearNetwork(BaseNetwork):
                 patience_counter += 1
             
             if patience_counter > patience:
-                print(f"No improvement in validation MSE for {patience} epochs, stopping training.")
+                # print(f"No improvement in validation MSE for {patience} epochs, stopping training.")
                 break
             
             # if epoch % 100 == 0:
@@ -272,7 +272,7 @@ class FeedForwardNetwork(BaseNetwork):
 
             # Stop training if patience is exceeded
             if patience_counter > patience:
-                print(f"No improvement in validation metric for {patience} epochs, stopping training.")
+                # print(f"No improvement in validation metric for {patience} epochs, stopping training.")
                 break
 
         # After training, set weights to the best found if early stopping was used
@@ -340,6 +340,7 @@ class AutoEncoder(BaseNetwork):
 
         best_loss = np.inf
         patience_counter = 0
+        losses = []
 
         for epoch in range(max_epochs):
 
@@ -349,7 +350,7 @@ class AutoEncoder(BaseNetwork):
 
             error = A_output - X_train
             loss = np.mean(error**2)
-
+            losses.append(loss)
             
             # print(f"Epoch {epoch}/{max_epochs}, Loss: {loss}")
 
@@ -360,6 +361,7 @@ class AutoEncoder(BaseNetwork):
                 patience_counter += 1
                 if patience_counter > patience:
                     break
+        return losses
 
 class CombinedModel(BaseNetwork):
 
@@ -481,7 +483,7 @@ class CombinedModel(BaseNetwork):
 
             # Stop training if patience is exceeded
             if patience_counter > patience:
-                print(f"No improvement in validation metric for {patience} epochs, stopping training.")
+                # print(f"No improvement in validation metric for {patience} epochs, stopping training.")
                 break
 
         # After training, set weights to the best found if early stopping was used
