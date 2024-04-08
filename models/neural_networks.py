@@ -29,6 +29,8 @@ class BaseNetwork:
         accuracy = np.mean(predicted_labels == true_labels)
         return accuracy
 
+
+
 class LinearNetwork(BaseNetwork):
 
     def __init__(self, config) -> None:
@@ -253,7 +255,7 @@ class FeedForwardNetwork(BaseNetwork):
             metrics.append(train_metric)
             val_metrics.append(val_metric)
 
-            # # Print progress
+            # # # Print progress
             # if epoch % 100 == 0:
             #     if self.n_output == 1:
             #         print(f"Epoch {epoch}/{epochs}, Train MSE: {train_metric}, Val MSE: {val_metric}")
@@ -464,7 +466,7 @@ class CombinedModel(BaseNetwork):
             metrics.append(train_metric)
             val_metrics.append(val_metric)
 
-            # Print progress
+            # # Print progress
             # if epoch % 100 == 0:
             #     if self.n_output == 1:
             #         print(f"Epoch {epoch}/{epochs}, Train MSE: {train_metric}, Val MSE: {val_metric}")
