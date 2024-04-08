@@ -3,18 +3,22 @@ import numpy as np
 class BaseNetwork:
     @staticmethod
     def softmax(z):
-        exp_scores = np.exp(z)
+        # Prevent overflow/underflow by subtracting the max from each row
+        z_max = np.max(z, axis=1, keepdims=True)
+        exp_scores = np.exp(z - z_max)
         probs = exp_scores / np.sum(exp_scores, axis=1, keepdims=True)
         return probs
 
     @staticmethod
     def cross_entropy_loss(y, probs):
         N = y.shape[0]
-        cross_entropy_loss = -np.sum(y * np.log(probs)) / N
+        # Add a small epsilon to the log to prevent log(0)
+        cross_entropy_loss = -np.sum(y * np.log(probs + 1e-9)) / N
         return cross_entropy_loss
 
     @staticmethod
     def sigmoid(X):
+        # Clip X values to avoid overflow in exp
         X_clipped = np.clip(X, -50, 50)
         return 1 / (1 + np.exp(-X_clipped))
     
