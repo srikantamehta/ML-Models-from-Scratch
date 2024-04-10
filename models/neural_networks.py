@@ -401,6 +401,8 @@ class FeedForwardNetwork(BaseNetwork):
         Returns:
         - None
         """
+        if self.verbose:
+            print("\nBackpass:\n")
 
         # Forward pass to compute activations
         A1, A2, A_output = self.forward_pass(X,verbose=True)
@@ -408,29 +410,35 @@ class FeedForwardNetwork(BaseNetwork):
         # Compute error gradients for each layer starting from the output
         error_output = A_output - y_true 
         if self.verbose:
-            print(f"Output Error:\n {error_output}\n")
+            print(f"Output Error:\n{error_output}\nEquation: E_output = A_output - y_true\n")
         dW_output = np.dot(A2.T, error_output)
         if self.verbose:
-            print(f"Output Gradients (dW_output):\n {dW_output}\n")
+            print(f"Output Gradients (dW_output):\n{dW_output}\nEquation: ∂L/∂W_output = A2^T . E_output\n")
         db_output = np.sum(error_output, axis=0)
+        if self.verbose:
+            print(f"Output Bias Gradients (db_output):\n{db_output}\nEquation: ∂L/∂b_output = ΣE_output\n")
         
         # Compute error for second hidden layer
         error_hidden_2 = np.dot(error_output, self.W_output.T) * (1 - np.power(A2, 2))  # Derivative of tanh is (1 - tanh^2)
         if self.verbose:
-            print(f"Hidden Layer 2 Error\n {error_hidden_2}\n")
+            print(f"Hidden Layer 2 Error:\n{error_hidden_2}\nEquation: E_hidden_2 = (E_output . W_output^T) * (1 - A2^2), where (1 - A2^2) is the derivative of tanh activation.\n")
         dW_hidden_2 = np.dot(A1.T, error_hidden_2)
         if self.verbose:
-            print(f"Hidden Layer 2 Gradients:\n {dW_hidden_2}\n")
+            print(f"Hidden Layer 2 Gradients (dW_hidden_2):\n{dW_hidden_2}\nEquation: ∂L/∂W_hidden_2 = A1^T . E_hidden_2\n")
         db_hidden_2 = np.sum(error_hidden_2, axis=0)
+        if self.verbose:
+            print(f"Hidden Layer 2 Bias Gradients (db_hidden_2):\n{db_hidden_2}\nEquation: ∂L/∂b_hidden_2 = ΣE_hidden_2\n")
         
         # Compute error for first hidden layer
         error_hidden_1 = np.dot(error_hidden_2, self.W_hidden_2.T) * (1 - np.power(A1, 2))
         if self.verbose:
-            print(f"Hidden Layer 1 Error\n {error_hidden_1}\n")
+            print(f"Hidden Layer 1 Error:\n{error_hidden_1}\nEquation: E_hidden_1 = (E_hidden_2 . W_hidden_2^T) * (1 - A1^2), where (1 - A1^2) is the derivative of tanh activation for the first hidden layer.\n")
         dW_hidden_1 = np.dot(X.T, error_hidden_1)
         if self.verbose:
-            print(f"Hidden Layer 1 Gradients:\n {dW_hidden_1}\n")
+            print(f"Hidden Layer 1 Gradients (dW_hidden_1):\n{dW_hidden_1}\nEquation: ∂L/∂W_hidden_1 = X^T . E_hidden_1\n")
         db_hidden_1 = np.sum(error_hidden_1, axis=0)
+        if self.verbose:
+            print(f"Hidden Layer 1 Bias Gradients (db_hidden_1):\n{db_hidden_1}\nEquation: ∂L/∂b_hidden_1 = ΣE_hidden_1\n")
         
         # Update weights and biases for each layer
         self.W_output -= lr * dW_output
@@ -621,31 +629,34 @@ class AutoEncoder(BaseNetwork):
         - None
         """
 
+        if self.verbose:
+            print("\nBackpass:\n")
+
         # Forward pass
         A1, A_output = self.forward_pass(X, verbose=True)
 
         # Output layer error (delta)
         error_decoder = A_output - X
         if self.verbose:
-            print(f"Decoder error:\n{error_decoder}\n")
+            print(f"Decoder error:\n{error_decoder}\nEquation: δ_decoder = A_output - X\n")
 
         # Compute gradients for the decoder
         dW_decoder = np.dot(A1.T, error_decoder)
         db_decoder = np.sum(error_decoder, axis=0)
         if self.verbose:
-            print(f"Decoder gradients:\n{dW_decoder}\n")
-            print(f"Decoder Biases:\n{db_decoder}\n")
+            print(f"Decoder gradients (Weights):\n{dW_decoder}\nEquation: ∂L/∂W_decoder = A1^T . δ_decoder\n")
+            print(f"Decoder Biases:\n{db_decoder}\nEquation: ∂L/∂b_decoder = sum(δ_decoder)\n")
         
         # Compute gradients for the encoder
         error_encoder = np.dot(error_decoder, self.W_decoder.T) * A1 * (1 - A1) 
         if self.verbose:
-            print(f"Encoder error:\n{error_encoder}\n")
+            print(f"Encoder error:\n{error_encoder}\nEquation: δ_encoder = (δ_decoder . W_decoder^T) * A1 * (1 - A1), where '*' denotes element-wise multiplication and the term A1 * (1 - A1) is the derivative of the sigmoid activation function.\n")
         dW_encoder = np.dot(X.T, error_encoder)
         db_encoder = np.sum(error_encoder, axis=0)
         if self.verbose:
-            print(f"Encoder gradients:\n{dW_encoder}\n")
-            print(f"Encoder Biases:\n{db_encoder}\n")
-
+            print(f"Encoder gradients (Weights):\n{dW_encoder}\nEquation: ∂L/∂W_encoder = X^T . δ_encoder\n")
+            print(f"Encoder Biases:\n{db_encoder}\nEquation: ∂L/∂b_encoder = sum(δ_encoder)\n")
+        
         # Update encoder and decoder weights and biases
         self.W_decoder -= lr * dW_decoder
         self.b_decoder -= lr * db_decoder
@@ -823,41 +834,44 @@ class CombinedModel(BaseNetwork):
         and updates weights and biases accordingly.
         """
 
+        if self.verbose:
+            print("\nBackpass:\n")
+
         # Perform forward pass to get activations
         A1, A2, A_output = self.forward_pass(X,verbose=True)
 
         # Compute gradients for the output layer
         error_output = A_output - y_true
         if self.verbose:
-            print(f"Output Error:\n{error_output}\n") 
+            print(f"Output Error:\n{error_output}\nEquation: δ_output = A_output - y_true\n") 
         dW_output = np.dot(A2.T, error_output)
         if self.verbose:
-            print(f"Output Weight Gradients:\n{dW_output}\n")
+            print(f"Output Weight Gradients:\n{dW_output}\nEquation: ∂L/∂W_output = A2^T . δ_output\n")
         db_output = np.sum(error_output, axis=0)
         if self.verbose:
-            print(f"Output Bias Gradients:\n{db_output}\n")
+            print(f"Output Bias Gradients:\n{db_output}\nEquation: ∂L/∂b_output = sum(δ_output)\n")
         
         # Compute gradients for the second hidden layer
         error_hidden_2 = np.dot(error_output, self.W_output.T) * (1 - np.power(A2, 2))  # Derivative of tanh is (1 - tanh^2)
         if self.verbose:
-            print(f"Hidden Layer 2 Error:\n{error_hidden_2}\n") 
+            print(f"Hidden Layer 2 Error:\n{error_hidden_2}\nEquation: δ_hidden_2 = (δ_output . W_output^T) * (1 - A2^2), noting the derivative of tanh activation is 1 - tanh^2(x)\n")  
         dW_hidden_2 = np.dot(A1.T, error_hidden_2)
         if self.verbose:
-            print(f"Hidden Layer 2 Weight Gradients:\n{dW_hidden_2}\n")
+            print(f"Hidden Layer 2 Weight Gradients:\n{dW_hidden_2}\nEquation: ∂L/∂W_hidden_2 = A1^T . δ_hidden_2\n")
         db_hidden_2 = np.sum(error_hidden_2, axis=0)
         if self.verbose:
-            print(f"Hidden Layer 2 Bias Gradients:\n{db_hidden_2}\n")
+            print(f"Hidden Layer 2 Bias Gradients:\n{db_hidden_2}\nEquation: ∂L/∂b_hidden_2 = sum(δ_hidden_2)\n")
         
         # Compute gradients for the first hidden layer (encoder layer)
         error_hidden_1 = np.dot(error_hidden_2, self.W_hidden_2.T) * A1 * (1 - A1) 
         if self.verbose:
-            print(f"Hidden Layer 1 (Encoder) Error:\n{error_hidden_1}\n") 
+            print(f"Hidden Layer 1 (Encoder) Error:\n{error_hidden_1}\nEquation: δ_hidden_1 = (δ_hidden_2 . W_hidden_2^T) * A1 * (1 - A1), where '*' denotes element-wise multiplication and A1 * (1 - A1) is the derivative of the sigmoid function.\n")
         dW_hidden_1 = np.dot(X.T, error_hidden_1)
         if self.verbose:
-            print(f"Hidden Layer 1 (Encoder) Weight Gradients:\n{dW_hidden_1}\n")
+            print(f"Hidden Layer 1 (Encoder) Weight Gradients:\n{dW_hidden_1}\nEquation: ∂L/∂W_hidden_1 = X^T . δ_hidden_1\n")
         db_hidden_1 = np.sum(error_hidden_1, axis=0)
         if self.verbose:
-            print(f"Hidden Layer 1 (Encoder) Bias Gradients:\n{db_hidden_1}\n")
+            print(f"Hidden Layer 1 (Encoder) Bias Gradients:\n{db_hidden_1}\nEquation: ∂L/∂b_hidden_1 = sum(δ_hidden_1)\n")
         
         # Update the model's weights and biases based on gradients
         self.W_output -= lr * dW_output
