@@ -94,7 +94,7 @@ class LinearNetwork(BaseNetwork):
         self.config = config
         self.W = None
     
-    def logistic_regression(self, X_train, y_train, X_val, y_val, epochs=1000, lr=0.01, patience=np.inf):
+    def logistic_regression(self, X_train, y_train, X_val, y_val, epochs=1000, lr=0.01, patience=np.inf, verbose=False):
         """
         Trains the network using logistic regression on the provided training set
         and evaluates it on the validation set.
@@ -120,7 +120,9 @@ class LinearNetwork(BaseNetwork):
         
         # Initialize weights randomly
         self.W = np.random.rand(X_train.shape[1], y_train.shape[1]) / 100
-        
+        if verbose:
+            print(f"Initial Weights:\n {self.W}")
+
         best_loss = np.inf
         patience_counter = 0
         losses = []
@@ -129,19 +131,29 @@ class LinearNetwork(BaseNetwork):
         for epoch in range(epochs):
             # Compute model scores for the training data
             Scores = X_train @ self.W
+            if verbose:
+                print(f"X_train * W =\n {Scores}\n")
             # Apply softmax to obtain probabilities
             probs = self.softmax(Scores)
+            if verbose:
+                print(f"Softmax(X_train * W) =\n {probs}\n")
             # Compute error as difference between actual labels and probabilities
             error = y_train - probs
+            if verbose:
+                print(f"Error =\n {error}\n")
             # Calculate gradient with respect to weights
             gradient = X_train.T @ error
+            if verbose:
+                print(f"Gradient =\n {gradient}\n")
             # Update weights using gradient ascent
             self.W = self.W + lr * gradient
-            
+            if verbose:
+                print(f"New weights:\n {self.W}\n")
             # Calculate training loss
             loss = self.cross_entropy_loss(y_train, probs)
             losses.append(loss)
-            
+            if verbose:
+                print(f"Training Loss=\n {loss}\n")
             # Validation step: compute validation loss
             val_Scores = X_val @ self.W
             val_probs = self.softmax(val_Scores)
@@ -293,7 +305,7 @@ class FeedForwardNetwork(BaseNetwork):
       Best weights and biases during training for early stopping.
     """
 
-    def __init__(self, config, n_input, n_hidden_1, n_hidden_2, n_output) -> None:
+    def __init__(self, config, n_input, n_hidden_1, n_hidden_2, n_output, verbose = False) -> None:
         """
         Initializes the feedforward network with the specified architecture and parameters.
 
@@ -308,16 +320,24 @@ class FeedForwardNetwork(BaseNetwork):
         super().__init__()
         self.config = config
         self.n_output = n_output
-
+        self.verbose = verbose
         # Initialize weights randomly for layers
         self.W_hidden_1 = np.random.rand(n_input,n_hidden_1)/100
         self.W_hidden_2 = np.random.rand(n_hidden_1,n_hidden_2)/100
         self.W_output = np.random.rand(n_hidden_2,n_output)/100
+        if verbose:
+            print(f"Hidden Layer 1 Weights:\n {self.W_hidden_1}\n")
+            print(f"Hidden Layer 2 Weights:\n {self.W_hidden_2}\n")
+            print(f"Output Layer Weights:\n {self.W_output}\n")
 
         # Initialize biases to zeros for layers
         self.b_hidden_1 = np.zeros((1, n_hidden_1))
         self.b_hidden_2 = np.zeros((1, n_hidden_2))
         self.b_output = np.zeros((1, n_output))
+        if verbose:
+            print(f"Hidden Layer 1 Biases:\n {self.b_hidden_1}\n")
+            print(f"Hidden Layer 2 Biases:\n {self.b_hidden_2}\n")
+            print(f"Output Layer Biases:\n {self.b_output}\n")
 
         # Save best weights and biases 
         self.best_W_hidden_1 = np.random.rand(n_input,n_hidden_1)/100
@@ -327,7 +347,7 @@ class FeedForwardNetwork(BaseNetwork):
         self.best_b_hidden_2 = np.zeros((1, n_hidden_2))
         self.best_b_output = np.zeros((1, n_output))
 
-    def forward_pass(self, X):
+    def forward_pass(self, X, verbose=False):
         """
         Performs a forward pass through the network, calculating the output for each layer.
 
@@ -338,23 +358,34 @@ class FeedForwardNetwork(BaseNetwork):
         - tuple: Activations from the first and second hidden layers, and the output layer.
         """
 
+        if self.verbose and verbose:
+            print("Forward Pass:")
         # Calculate activations for the first hidden layer
         Z1 = np.dot(X, self.W_hidden_1) + self.b_hidden_1
+        if self.verbose and verbose:
+            print(f"Z1 = X*W1+b:\n {Z1}\n")
         A1 = np.tanh(Z1)  # # Tanh activation function 
-
+        if self.verbose and verbose:
+            print(f"A1 (Hidden 1) = tanh(Z1):\n {A1}\n")
         # Calculate activations for the second hidden layer
         Z2 = np.dot(A1, self.W_hidden_2) + self.b_hidden_2
+        if self.verbose and verbose:
+            print(f"Z2 = A1*W2:\n {Z2}")
         A2 = np.tanh(Z2)  # Tanh activation function
-
+        if self.verbose and verbose:
+            print(f"A2 (Hidden 2) = tanh(Z2):\n {A2}\n")
         # Calculate the output layer's activations
         Z_output = np.dot(A2, self.W_output) + self.b_output
-
+        
         # Use softmax for multi-class classification, linear for regression/single output
         if self.n_output == 1:
             A_output = Z_output
+            if self.verbose and verbose:
+                print(f"Regression Output:\n {A_output}\n")
         else:
             A_output = self.softmax(Z_output) 
-
+            if self.verbose and verbose:
+                print(f"Classification Output (w/ Softmax):\n {A_output}\n")
         return A1, A2, A_output
     
     def backpropagation(self, X, y_true, lr):
@@ -372,21 +403,33 @@ class FeedForwardNetwork(BaseNetwork):
         """
 
         # Forward pass to compute activations
-        A1, A2, A_output = self.forward_pass(X)
+        A1, A2, A_output = self.forward_pass(X,verbose=True)
 
         # Compute error gradients for each layer starting from the output
         error_output = A_output - y_true 
+        if self.verbose:
+            print(f"Output Error:\n {error_output}\n")
         dW_output = np.dot(A2.T, error_output)
+        if self.verbose:
+            print(f"Output Gradients:\n {dW_output}\n")
         db_output = np.sum(error_output, axis=0)
         
         # Compute error for second hidden layer
         error_hidden_2 = np.dot(error_output, self.W_output.T) * (1 - np.power(A2, 2))  # Derivative of tanh is (1 - tanh^2)
+        if self.verbose:
+            print(f"Hidden Layer 2 Error\n {error_hidden_2}\n")
         dW_hidden_2 = np.dot(A1.T, error_hidden_2)
+        if self.verbose:
+            print(f"Hidden Layer 2 Gradients:\n {dW_hidden_2}\n")
         db_hidden_2 = np.sum(error_hidden_2, axis=0)
         
         # Compute error for first hidden layer
         error_hidden_1 = np.dot(error_hidden_2, self.W_hidden_2.T) * (1 - np.power(A1, 2))
+        if self.verbose:
+            print(f"Hidden Layer 1 Error\n {error_hidden_1}\n")
         dW_hidden_1 = np.dot(X.T, error_hidden_1)
+        if self.verbose:
+            print(f"Hidden Layer 1 Gradients:\n {dW_hidden_1}\n")
         db_hidden_1 = np.sum(error_hidden_1, axis=0)
         
         # Update weights and biases for each layer
@@ -396,7 +439,15 @@ class FeedForwardNetwork(BaseNetwork):
         self.b_hidden_2 -= lr * db_hidden_2
         self.W_hidden_1 -= lr * dW_hidden_1
         self.b_hidden_1 -= lr * db_hidden_1
-    
+        if self.verbose:
+            print(f"New Weights/Biases:")
+            print(f"Output W:\n {self.W_output}\n")
+            print(f"Output biases:\n {self.b_output}\n")
+            print(f"Hidden 2 W:\n {self.W_hidden_2}\n")
+            print(f"Hidden 2 biases:\n {self.b_hidden_2}\n")
+            print(f"Hidden 1 W:\n {self.W_hidden_1}\n")
+            print(f"Hidden 1 biases:\n {self.b_hidden_1}\n")
+
     def train(self, X_train, y_train, X_val, y_val, epochs, lr, patience=np.inf):
         """
         Trains the network using the provided training data, evaluates it on the validation data,
@@ -432,10 +483,14 @@ class FeedForwardNetwork(BaseNetwork):
                 # Compute MSE for training and validation sets
                 train_metric = np.mean((y_train - A_output)**2)
                 val_metric = np.mean((y_val - val_output)**2)
+                if self.verbose:
+                    print(f"Regression MSE: {train_metric}\n\n")
             else: 
                 # Compute the loss for training and validation sets
                 train_metric = self.cross_entropy_loss(y_train, A_output)
                 val_metric = self.cross_entropy_loss(y_val, val_output)
+                if self.verbose:
+                    print(f"Classification Loss: {train_metric}\n\n")
 
             metrics.append(train_metric)
             val_metrics.append(val_metric)
@@ -498,7 +553,7 @@ class AutoEncoder(BaseNetwork):
     - b_decoder (np.array): Biases of the decoder layer.
     """
 
-    def __init__(self, config, n_input, n_encoder) -> None:
+    def __init__(self, config, n_input, n_encoder,verbose=False) -> None:
         """
         Initializes the AutoEncoder with specified configurations.
 
@@ -510,17 +565,23 @@ class AutoEncoder(BaseNetwork):
         
         super().__init__()
         self.config = config
+        self.verbose = verbose
         self.n_encoder = n_encoder
 
         # Initialize encoder and decoder weights with small random values
         self.W_encoder = np.random.rand(n_input,n_encoder)/100
         self.W_decoder = np.random.rand(n_encoder,n_input)/100
-
+        if self.verbose:
+            print(f"Initial Encoder Weights:\n{self.W_encoder}\n")
+            print(f"Initial Decoder Weights:\n{self.W_decoder}\n")
         # Initialize encoder and decoder biases to zeros
         self.b_encoder = np.zeros((1, n_encoder))
         self.b_decoder = np.zeros((1, n_input))
-    
-    def forward_pass(self, X):
+        if self.verbose:
+            print(f"Initial Encoder Biases:\n{self.W_encoder}\n")
+            print(f"Initial Decoder Biases:\n{self.W_decoder}\n")
+
+    def forward_pass(self, X, verbose=False):
         """
         Performs a forward pass through the AutoEncoder, returning the encoder's
         activations and the reconstructed output.
@@ -531,14 +592,20 @@ class AutoEncoder(BaseNetwork):
         Returns:
         - tuple: Encoder activations and the reconstructed output.
         """
-        
+        if verbose and self.verbose:
+            print("Forward Pass:\n\n")
         # Encoder layer
         Z1 = np.dot(X, self.W_encoder) + self.b_encoder
-        A1 = self.sigmoid(Z1)  # Sigmoid activation function
+        if self.verbose and verbose:
+            print(f"Encoder layer Z1;\n{Z1}\n")
 
+        A1 = self.sigmoid(Z1)  # Sigmoid activation function
+        if self.verbose and verbose:
+            print(f"Encoder Activation Function (Sigmoid) A1 = sigmoid(Z1):\n{A1}\n")
         # Decoder layer
         A_output = np.dot(A1, self.W_decoder) + self.b_decoder
-        
+        if self.verbose and verbose:
+            print(f"Decoder layer output:\n{A_output}\n")
         return A1, A_output
     
     def backpropagation(self, X, lr):
@@ -555,25 +622,40 @@ class AutoEncoder(BaseNetwork):
         """
 
         # Forward pass
-        A1, A_output = self.forward_pass(X)
+        A1, A_output = self.forward_pass(X, verbose=True)
 
         # Output layer error (delta)
         error_decoder = A_output - X
+        if self.verbose:
+            print(f"Decoder error:\n{error_decoder}\n")
 
         # Compute gradients for the decoder
         dW_decoder = np.dot(A1.T, error_decoder)
         db_decoder = np.sum(error_decoder, axis=0)
+        if self.verbose:
+            print(f"Decoder gradients:\n{dW_decoder}\n")
+            print(f"Decoder Biases:\n{db_decoder}\n")
         
         # Compute gradients for the encoder
         error_encoder = np.dot(error_decoder, self.W_decoder.T) * A1 * (1 - A1) 
+        if self.verbose:
+            print(f"Encoder error:\n{error_encoder}\n")
         dW_encoder = np.dot(X.T, error_encoder)
         db_encoder = np.sum(error_encoder, axis=0)
-        
+        if self.verbose:
+            print(f"Encoder gradients:\n{dW_encoder}\n")
+            print(f"Encoder Biases:\n{db_encoder}\n")
+
         # Update encoder and decoder weights and biases
         self.W_decoder -= lr * dW_decoder
         self.b_decoder -= lr * db_decoder
         self.W_encoder -= lr * dW_encoder
         self.b_encoder -= lr * db_encoder
+        if self.verbose:
+            print(f"New Decoder Weights:\n{self.W_decoder}\n")
+            print(f"New Decoder Biases:\n{self.b_decoder}\n")
+            print(f"New Encoder Weights:\n{self.W_encoder}\n")
+            print(f"New Encoder Biases:\n{self.b_decoder}\n")
 
     def train(self, X_train, max_epochs=1000, lr=0.0001, patience=np.inf):
         """
@@ -606,7 +688,9 @@ class AutoEncoder(BaseNetwork):
             error = A_output - X_train
             loss = np.mean(error**2)
             losses.append(loss)
-            
+            if self.verbose:
+                print(f"Output Loss: {loss}\n\n")
+
             # print(f"Epoch {epoch}/{max_epochs}, Loss: {loss}")
 
             # Check for improvement in loss
@@ -639,7 +723,7 @@ class CombinedModel(BaseNetwork):
       Attributes to store the best weights and biases (for implementing early stopping, etc.).
     """
 
-    def __init__(self, autoencoder, n_hidden_2, n_output) -> None:
+    def __init__(self, autoencoder, n_hidden_2, n_output, verbose=False) -> None:
         """
         Initializes the CombinedModel with the encoder from a pre-trained autoencoder and
         additional layers for further tasks.
@@ -653,16 +737,25 @@ class CombinedModel(BaseNetwork):
         super().__init__()
         self.autoencoder = autoencoder
         self.n_output = n_output
+        self.verbose = verbose
 
         # Copy encoder weights and biases from the pre-trained autoencoder
         self.W_hidden_1 = autoencoder.W_encoder.copy()
         self.b_hidden_1 = autoencoder.b_encoder.copy()
+        if self.verbose:
+            print(f"Autoencoder Weights (Hidden Layer 1):\n{self.W_hidden_1}\n")
+            print(f"Autoencoder Biases (Hidden Layer 1):\n{self.b_hidden_1}\n")
 
         # Initialize weights and biases for the new layers
         self.W_hidden_2 = np.random.rand(autoencoder.n_encoder, n_hidden_2) / 100
         self.b_hidden_2 = np.zeros((1, n_hidden_2))
         self.W_output = np.random.rand(n_hidden_2, n_output) / 100
         self.b_output = np.zeros((1, n_output))
+        if self.verbose:
+            print(f"Hidden Layer 2 Initial Weights:\n{self.W_hidden_2}\n")
+            print(f"Hidden Layer 2 Initial Biases:\n{self.b_hidden_2}\n")
+            print(f"Output Layer Initial Biases:\n{self.W_output}\n")
+            print(f"Output Layer Initial Biases:\n{self.b_output}\n")
 
         # Prepare attributes for storing the best model state
         self.best_W_hidden_1 = self.W_hidden_1.copy()
@@ -672,7 +765,7 @@ class CombinedModel(BaseNetwork):
         self.best_b_hidden_2 = self.b_hidden_2.copy()
         self.best_b_output = self.b_output.copy()
     
-    def forward_pass(self, X):
+    def forward_pass(self, X, verbose=False):
         """
         Performs a forward pass through the combined model, using the encoder from
         the autoencoder and the additional layers.
@@ -683,14 +776,23 @@ class CombinedModel(BaseNetwork):
         Returns:
         - tuple: Activations from the encoder, second hidden layer, and the output prediction.
         """
+        if verbose and self.verbose:
+                print(f"\nForward Pass:\n")
 
         # Encoder layer from the pre-trained autoencoder
         Z1 = np.dot(X, self.W_hidden_1) + self.b_hidden_1
+        if verbose and self.verbose:
+            print(f"Encoder layer (Hidden 1):\n{Z1}\n")
         A1 = self.sigmoid(Z1)  # Activation function
-
+        if verbose and self.verbose:
+            print(f"Sigmoid activation function:\n{A1}\n")
         # Second hidden layer 
         Z2 = np.dot(A1, self.W_hidden_2) + self.b_hidden_2
+        if verbose and self.verbose:
+            print(f"Second hidden layer:\n{Z2}\n")
         A2 = np.tanh(Z2)  # Tanh Activation function
+        if verbose and self.verbose:
+            print(f"Second hidden layer activation function (tanh):\n{A2}\n")
 
         # Output layer
         Z_output = np.dot(A2, self.W_output) + self.b_output
@@ -698,8 +800,12 @@ class CombinedModel(BaseNetwork):
         # Use softmax for multi-class classification or linear for regression/single output
         if self.n_output == 1:
             A_output = Z_output
+            if verbose and self.verbose:
+                print(f"Regression Output:\n{A_output}\n")
         else:
             A_output = self.softmax(Z_output) 
+            if verbose and self.verbose:
+                print(f"Classification Output (Softmax):\n{A_output}\n")
 
         return A1, A2, A_output   
     
@@ -718,22 +824,40 @@ class CombinedModel(BaseNetwork):
         """
 
         # Perform forward pass to get activations
-        A1, A2, A_output = self.forward_pass(X)
+        A1, A2, A_output = self.forward_pass(X,verbose=True)
 
         # Compute gradients for the output layer
-        error_output = A_output - y_true 
+        error_output = A_output - y_true
+        if self.verbose:
+            print(f"Output Error:\n{error_output}\n") 
         dW_output = np.dot(A2.T, error_output)
+        if self.verbose:
+            print(f"Output Weight Gradients:\n{dW_output}\n")
         db_output = np.sum(error_output, axis=0)
+        if self.verbose:
+            print(f"Output Bias Gradients:\n{db_output}\n")
         
         # Compute gradients for the second hidden layer
         error_hidden_2 = np.dot(error_output, self.W_output.T) * (1 - np.power(A2, 2))  # Derivative of tanh is (1 - tanh^2)
+        if self.verbose:
+            print(f"Hidden Layer 2 Error:\n{error_hidden_2}\n") 
         dW_hidden_2 = np.dot(A1.T, error_hidden_2)
+        if self.verbose:
+            print(f"Hidden Layer 2 Weight Gradients:\n{dW_hidden_2}\n")
         db_hidden_2 = np.sum(error_hidden_2, axis=0)
+        if self.verbose:
+            print(f"Hidden Layer 2 Bias Gradients:\n{db_hidden_2}\n")
         
         # Compute gradients for the first hidden layer (encoder layer)
         error_hidden_1 = np.dot(error_hidden_2, self.W_hidden_2.T) * A1 * (1 - A1) 
+        if self.verbose:
+            print(f"Hidden Layer 1 (Encoder) Error:\n{error_hidden_1}\n") 
         dW_hidden_1 = np.dot(X.T, error_hidden_1)
+        if self.verbose:
+            print(f"Hidden Layer 1 (Encoder) Weight Gradients:\n{dW_hidden_1}\n")
         db_hidden_1 = np.sum(error_hidden_1, axis=0)
+        if self.verbose:
+            print(f"Hidden Layer 1 (Encoder) Bias Gradients:\n{db_hidden_1}\n")
         
         # Update the model's weights and biases based on gradients
         self.W_output -= lr * dW_output
@@ -742,6 +866,14 @@ class CombinedModel(BaseNetwork):
         self.b_hidden_2 -= lr * db_hidden_2
         self.W_hidden_1 -= lr * dW_hidden_1
         self.b_hidden_1 -= lr * db_hidden_1
+        if self.verbose:
+            print(f"New Weights/Biases:")
+            print(f"Output W:\n {self.W_output}\n")
+            print(f"Output biases:\n {self.b_output}\n")
+            print(f"Hidden 2 W:\n {self.W_hidden_2}\n")
+            print(f"Hidden 2 biases:\n {self.b_hidden_2}\n")
+            print(f"Hidden 1 W:\n {self.W_hidden_1}\n")
+            print(f"Hidden 1 biases:\n {self.b_hidden_1}\n")
 
     def train(self, X_train, y_train, X_val, y_val, epochs, lr, patience=np.inf):
         """
@@ -777,10 +909,14 @@ class CombinedModel(BaseNetwork):
                 # Compute MSE for training and validation sets
                 train_metric = np.mean((y_train - A_output)**2)
                 val_metric = np.mean((y_val - val_output)**2)
+                if self.verbose:
+                    print(f"Regression MSE: {train_metric}\n")
             else: 
                 # Compute the loss for training and validation sets
                 train_metric = self.cross_entropy_loss(y_train, A_output)
                 val_metric = self.cross_entropy_loss(y_val, val_output)
+                if self.verbose:
+                    print(f"Classification Loss: {train_metric}\n")
 
             metrics.append(train_metric)
             val_metrics.append(val_metric)
