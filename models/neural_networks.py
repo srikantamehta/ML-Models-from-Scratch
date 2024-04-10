@@ -148,7 +148,7 @@ class LinearNetwork(BaseNetwork):
             # Update weights using gradient ascent
             self.W = self.W + lr * gradient
             if verbose:
-                print(f"New weights:\n {self.W}\n")
+                print(f"Updated Weights:\n {self.W}\n")
             # Calculate training loss
             loss = self.cross_entropy_loss(y_train, probs)
             losses.append(loss)
@@ -363,14 +363,14 @@ class FeedForwardNetwork(BaseNetwork):
         # Calculate activations for the first hidden layer
         Z1 = np.dot(X, self.W_hidden_1) + self.b_hidden_1
         if self.verbose and verbose:
-            print(f"Z1 = X*W1+b:\n {Z1}\n")
+            print(f"Z1 = X*W1 + b1:\n {Z1}\n")
         A1 = np.tanh(Z1)  # # Tanh activation function 
         if self.verbose and verbose:
             print(f"A1 (Hidden 1) = tanh(Z1):\n {A1}\n")
         # Calculate activations for the second hidden layer
         Z2 = np.dot(A1, self.W_hidden_2) + self.b_hidden_2
         if self.verbose and verbose:
-            print(f"Z2 = A1*W2:\n {Z2}")
+            print(f"Z2 = A1*W2 + b2:\n {Z2}")
         A2 = np.tanh(Z2)  # Tanh activation function
         if self.verbose and verbose:
             print(f"A2 (Hidden 2) = tanh(Z2):\n {A2}\n")
@@ -411,7 +411,7 @@ class FeedForwardNetwork(BaseNetwork):
             print(f"Output Error:\n {error_output}\n")
         dW_output = np.dot(A2.T, error_output)
         if self.verbose:
-            print(f"Output Gradients:\n {dW_output}\n")
+            print(f"Output Gradients (dW_output):\n {dW_output}\n")
         db_output = np.sum(error_output, axis=0)
         
         # Compute error for second hidden layer
