@@ -51,54 +51,28 @@ class Simulator:
         self.crash_option = crash_option
         self.start_x, self.start_y = random.choice(self.racetrack.starting_points)
         self.car = Car(self.start_x, self.start_y, vx=0, vy=0)
-        self.lookup_table = {}
-        self.populate_lookup_table()
         self.running = True
 
     def reset(self):
-        self.car.x, self.car.y = self.start_x, self.start_y
+        self.car.x, self.car.y = self.start_x, self.start_y  
         self.car.vx, self.car.vy = 0, 0
         self.running = True
-
-    def populate_lookup_table(self):
-        for y in range(len(self.racetrack.track)):
-            for x in range(len(self.racetrack.track[0])):
-                for vx in range(-5, 6):
-                    for vy in range(-5, 6):
-                        for ax in [-1, 0, 1]:
-                            for ay in [-1, 0, 1]:
-                                self.process_state_action(x, y, vx, vy, ax, ay)
-        Simulator.reset(self)
-
-    def process_state_action(self, x, y, vx, vy, ax, ay):
-        # Create a temporary car to simulate the state transition
-        temp_car = Car(x, y, vx, vy)
-        temp_car.apply_action(ax, ay)  # Apply action with potential failure
-
-        new_vx, new_vy = temp_car.vx, temp_car.vy
-        new_x, new_y = temp_car.x, temp_car.y
-
-        # Check if there was an actual attempt to move
-        was_moving = (ax != 0 or ay != 0)
-
-        if self.check_path_for_crash(x, y, new_x, new_y):
-            # Pass the was_moving flag to handle the crash accordingly
-            new_x, new_y = self.handle_crash(new_x, new_y, was_moving)
-            reward = -1
-        elif (new_x, new_y) in self.racetrack.finish_lines:
-            reward = 0
-        else:
-            reward = -1
-
-        self.lookup_table[(x, y, vx, vy, ax, ay)] = ((new_x, new_y, new_vx, new_vy), reward)
-
 
     def step(self, action):
         if not self.running:
             return None, 0, True  # Return immediately if the simulator is not running.
 
         # Apply action with a chance of failure as defined in the Car class
-        self.car.apply_action(*action)
+        self.car.apply_action(*action)  
+
+        # Get potential new position after applying action
+        new_x, new_y = self.car.x, self.car.y
+
+        # Check if the path to the new position results in a crash 
+        if self.check_path_for_crash(self.car.x, self.car.y, new_x, new_y):
+            self.handle_crash(new_x, new_y)  # Handle crash before updating position
+        else:
+            self.car.x, self.car.y = new_x, new_y  # Update position only if no crash
 
         # Define the current state after action application
         state = (self.car.x, self.car.y, self.car.vx, self.car.vy)
@@ -112,6 +86,7 @@ class Simulator:
             reward = -1  # Standard cost for a move
 
         return next_state, reward, not self.running
+
 
     def bresenhams_line_algorithm(self, x0, y0, x1, y1):
         points = []
@@ -140,16 +115,13 @@ class Simulator:
                 return True
         return False
 
-    def handle_crash(self, x, y, was_moving):
-        if was_moving:
-            if self.crash_option == 'nearest':
-                nearest_valid = self.find_nearest_valid_position(x, y)
-                self.car.x, self.car.y = nearest_valid
-            elif self.crash_option == 'original':
-                self.car.x, self.car.y = self.start_x, self.start_y
-        # Ensure to reset velocity to 0 after a crash
+    def handle_crash(self, x, y): 
+        if self.crash_option == 'nearest':
+            self.car.x, self.car.y = self.find_nearest_valid_position(x, y)
+        elif self.crash_option == 'original':
+            self.car.x, self.car.y = random.choice(self.racetrack.starting_points)
+        # Reset velocity in BOTH cases
         self.car.vx, self.car.vy = 0, 0
-        return (self.car.x, self.car.y)
 
 
     def find_nearest_valid_position(self, x, y):
@@ -166,13 +138,60 @@ class Simulator:
 
 
 class ValueIteration:
-    def __init__(self, simulator):
+    def __init__(self, simulator, discount_factor=0.99, theta=0.1):
         self.simulator = simulator
-        self.values = np.zeros((len(simulator.track.track), len(simulator.track.track[0])))
+        self.gamma = discount_factor
+        self.theta = theta
+        self.states = self.generate_states()
+        self.action_space = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 0), (0, 1), (1, -1), (1, 0), (1, 1)]
+        self.values = np.zeros(len(self.states))
+        self.policy = {}
+
+    def generate_states(self):
+        states = []
+        for x in range(len(self.simulator.racetrack.track[0])):
+            for y in range(len(self.simulator.racetrack.track)):
+                for vx in range(-5, 6):
+                    for vy in range(-5, 6):
+                        if self.simulator.racetrack.track[y][x] != '#':
+                            states.append((x, y, vx, vy))
+        return states
 
     def run(self):
-        # Implement the value iteration update logic
-        pass
+        delta = float('inf')
+        while delta > self.theta:
+            delta = 0
+            for state_index, state in enumerate(self.states):
+                v = self.values[state_index]
+                max_value = float('-inf')
+                for action in self.action_space:
+                    total = 0
+                    transitions = self.simulator.step(state, action)
+                    for prob, next_state, reward in transitions:
+                        state_index_next = self.states.index(next_state)
+                        total += prob * (reward + self.gamma * self.values[state_index_next])
+                    if total > max_value:
+                        max_value = total
+                self.values[state_index] = max_value
+                delta = max(delta, abs(v - self.values[state_index]))
+
+        # Extract policy from values
+        for state_index, state in enumerate(self.states):
+            best_action_value = float('-inf')
+            best_action = None
+            for action in self.action_space:
+                total = 0
+                transitions = self.simulator.step(state, action)
+                for prob, next_state, reward in transitions:
+                    state_index_next = self.states.index(next_state)
+                    total += prob * (reward + self.gamma * self.values[state_index_next])
+                if total > best_action_value:
+                    best_action_value = total
+                    best_action = action
+            self.policy[state] = best_action
+
+    def get_policy(self):
+        return self.policy
 
 class QLearning:
     def __init__(self, simulator):
