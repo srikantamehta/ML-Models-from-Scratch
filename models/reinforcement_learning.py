@@ -64,7 +64,6 @@ class Simulator:
                             state = (x, y, vx, vy)
                             transition_table[state] = {}
                             for ax, ay in action_space:
-                                # Adjusted to unpack three return values
                                 new_state, reward, is_terminal = self.compute_state_transition(state, (ax, ay))
                                 # Store the new state, reward, and the is_terminal status in the transition table
                                 transition_table[state][(ax, ay)] = (new_state, reward, is_terminal)
@@ -84,16 +83,21 @@ class Simulator:
         new_x = x + vx
         new_y = y + vy
 
+        # Check for crashes at each intermediate position along the path
+        current_x, current_y = x, y
+        while current_x != new_x or current_y != new_y:
+            next_x = current_x + (1 if new_x > current_x else -1 if new_x < current_x else 0)
+            next_y = current_y + (1 if new_y > current_y else -1 if new_y < current_y else 0)
+            if self.check_path_for_crash(current_x, current_y, next_x, next_y):
+                self.handle_crash(next_x, next_y)
+                new_x, new_y = self.car.x, self.car.y
+                vx, vy = 0, 0  # Reset velocity
+                return (new_x, new_y, vx, vy), -1, False
+            current_x, current_y = next_x, next_y
+
         # Check for finish line
         if (new_x, new_y) in self.racetrack.finish_lines:
             return (new_x, new_y, 0, 0), 0, True
-
-        # Check for crashes
-        if self.check_path_for_crash(x, y, new_x, new_y):
-            self.handle_crash(new_x, new_y)
-            new_x, new_y = self.car.x, self.car.y
-            vx, vy = 0, 0  # Reset velocity
-            return (new_x, new_y, vx, vy), -1, False
 
         return (new_x, new_y, vx, vy), -1, False
 
@@ -114,10 +118,6 @@ class Simulator:
             if is_terminal:
                 print(f"Simulation ends at state {new_state} after {steps} steps.")
                 return steps  # Ensure this return statement is hit when simulation ends
-
-        
-        
-
 
     def reset(self):
         # Reset the car to a random starting point when the simulator is reset
@@ -144,6 +144,7 @@ class Simulator:
             if e2 < dx:
                 err += dx
                 y0 += sy
+        points.append((x1, y1))  # Add the end position to the list of points
         return points
 
     def check_path_for_crash(self, x0, y0, x1, y1):
