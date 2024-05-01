@@ -42,51 +42,89 @@ class Car:
         self.x += self.vx
         self.y += self.vy
 
-
-import random
-
 class Simulator:
     def __init__(self, racetrack, crash_option='nearest'):
         self.racetrack = racetrack
         self.crash_option = crash_option
+        # Choose a random starting point from the starting points provided by the racetrack
         self.start_x, self.start_y = random.choice(self.racetrack.starting_points)
+        # Initialize the Car object at the chosen starting point with initial velocity set to zero
         self.car = Car(self.start_x, self.start_y, vx=0, vy=0)
         self.running = True
+        self.transition_table = self.build_transition_table()
+
+    def build_transition_table(self):
+        transition_table = {}
+        action_space = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 0), (0, 1), (1, -1), (1, 0), (1, 1)]
+        for x in range(len(self.racetrack.track[0])):
+            for y in range(len(self.racetrack.track)):
+                for vx in range(-5, 6):
+                    for vy in range(-5, 6):
+                        if self.racetrack.track[y][x] != '#':
+                            state = (x, y, vx, vy)
+                            transition_table[state] = {}
+                            for ax, ay in action_space:
+                                # Adjusted to unpack three return values
+                                new_state, reward, is_terminal = self.compute_state_transition(state, (ax, ay))
+                                # Store the new state, reward, and the is_terminal status in the transition table
+                                transition_table[state][(ax, ay)] = (new_state, reward, is_terminal)
+        self.reset()
+        return transition_table
+
+    def compute_state_transition(self, state, action):
+        x, y, vx, vy = state
+        ax, ay = action
+
+        # Compute potential new velocity
+        if random.random() > 0.2:  # 80% chance to succeed
+            vx = max(min(vx + ax, 5), -5)
+            vy = max(min(vy + ay, 5), -5)
+
+        # Compute potential new position
+        new_x = x + vx
+        new_y = y + vy
+
+        # Check for finish line
+        if (new_x, new_y) in self.racetrack.finish_lines:
+            return (new_x, new_y, 0, 0), 0, True
+
+        # Check for crashes
+        if self.check_path_for_crash(x, y, new_x, new_y):
+            self.handle_crash(new_x, new_y)
+            new_x, new_y = self.car.x, self.car.y
+            vx, vy = 0, 0  # Reset velocity
+            return (new_x, new_y, vx, vy), -1, False
+
+        return (new_x, new_y, vx, vy), -1, False
+
+
+    def simulate_with_policy(self, policy):
+        self.reset()
+        state = (self.car.x, self.car.y, 0, 0)
+        steps = 0
+        while True:
+            action = policy.get(state)
+            if action is None:
+                print("No action defined for this state, simulation ends.")
+                return steps  # Return number of steps when no further action is possible
+            new_state, reward, is_terminal = self.compute_state_transition(state, action)
+            print(f"Step {steps}: State {state} -> Action {action} -> New State {new_state}, Reward {reward}")
+            state = new_state
+            steps += 1
+            if is_terminal:
+                print(f"Simulation ends at state {new_state} after {steps} steps.")
+                return steps  # Ensure this return statement is hit when simulation ends
+
+        
+        
+
 
     def reset(self):
-        self.car.x, self.car.y = self.start_x, self.start_y  
+        # Reset the car to a random starting point when the simulator is reset
+        self.start_x, self.start_y = random.choice(self.racetrack.starting_points)
+        self.car.x, self.car.y = self.start_x, self.start_y
         self.car.vx, self.car.vy = 0, 0
         self.running = True
-
-    def step(self, action):
-        if not self.running:
-            return None, 0, True  # Return immediately if the simulator is not running.
-
-        # Apply action with a chance of failure as defined in the Car class
-        self.car.apply_action(*action)  
-
-        # Get potential new position after applying action
-        new_x, new_y = self.car.x, self.car.y
-
-        # Check if the path to the new position results in a crash 
-        if self.check_path_for_crash(self.car.x, self.car.y, new_x, new_y):
-            self.handle_crash(new_x, new_y)  # Handle crash before updating position
-        else:
-            self.car.x, self.car.y = new_x, new_y  # Update position only if no crash
-
-        # Define the current state after action application
-        state = (self.car.x, self.car.y, self.car.vx, self.car.vy)
-        next_state = state
-
-        # Check if the car is at the finish line to determine the reward
-        if (self.car.x, self.car.y) in self.racetrack.finish_lines:
-            self.running = False
-            reward = 0  # No penalty if finish line is reached
-        else:
-            reward = -1  # Standard cost for a move
-
-        return next_state, reward, not self.running
-
 
     def bresenhams_line_algorithm(self, x0, y0, x1, y1):
         points = []
@@ -129,75 +167,59 @@ class Simulator:
         nearest_position = (x, y)
         for row in range(len(self.racetrack.track)):
             for col in range(len(self.racetrack.track[row])):
-                if self.racetrack.track[row][col] != '#':
+                if (self.racetrack.track[row][col] != '#' and  # Check for valid (non-wall) spaces
+                    (row, col) not in self.racetrack.finish_lines):  # Exclude finish lines
                     distance = abs(x - col) + abs(y - row)
                     if distance < min_distance:
                         min_distance = distance
                         nearest_position = (col, row)
         return nearest_position
 
-
 class ValueIteration:
-    def __init__(self, simulator, discount_factor=0.99, theta=0.1):
+    def __init__(self, simulator, gamma=0.99, theta=0.1):
+        """
+        Initialize the Value Iteration algorithm with the given simulator.
+        
+        Args:
+        - simulator (Simulator): the simulation environment
+        - gamma (float): discount factor
+        - theta (float): a small threshold for determining convergence
+        """
         self.simulator = simulator
-        self.gamma = discount_factor
-        self.theta = theta
-        self.states = self.generate_states()
-        self.action_space = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 0), (0, 1), (1, -1), (1, 0), (1, 1)]
-        self.values = np.zeros(len(self.states))
-        self.policy = {}
-
-    def generate_states(self):
-        states = []
-        for x in range(len(self.simulator.racetrack.track[0])):
-            for y in range(len(self.simulator.racetrack.track)):
-                for vx in range(-5, 6):
-                    for vy in range(-5, 6):
-                        if self.simulator.racetrack.track[y][x] != '#':
-                            states.append((x, y, vx, vy))
-        return states
+        self.gamma = gamma  # Discount factor
+        self.theta = theta  # Convergence threshold
+        self.states = list(simulator.transition_table.keys())
+        self.V = {state: 0 for state in self.states}  # Value function initialization
+        self.policy = {state: None for state in self.states}  # Initial policy
 
     def run(self):
-        delta = float('inf')
-        while delta > self.theta:
+        while True:
             delta = 0
-            for state_index, state in enumerate(self.states):
-                v = self.values[state_index]
+            for state in self.states:
                 max_value = float('-inf')
-                for action in self.action_space:
+                current_value = self.V[state]
+                for action in self.simulator.transition_table[state]:
                     total = 0
-                    transitions = self.simulator.step(state, action)
-                    for prob, next_state, reward in transitions:
-                        state_index_next = self.states.index(next_state)
-                        total += prob * (reward + self.gamma * self.values[state_index_next])
+                    # Adjust here to unpack the third value, is_terminal
+                    new_state, reward, is_terminal = self.simulator.transition_table[state][action]
+                    if not is_terminal:  # If not a terminal state, proceed with the usual computation
+                        total = reward + self.gamma * self.V[new_state]
+                    else:
+                        total = reward  # If terminal, the future value is zero (typical for terminal states)
                     if total > max_value:
                         max_value = total
-                self.values[state_index] = max_value
-                delta = max(delta, abs(v - self.values[state_index]))
+                        self.policy[state] = action
+                delta = max(delta, abs(max_value - current_value))
+                self.V[state] = max_value
+            if delta < self.theta:
+                break
 
-        # Extract policy from values
-        for state_index, state in enumerate(self.states):
-            best_action_value = float('-inf')
-            best_action = None
-            for action in self.action_space:
-                total = 0
-                transitions = self.simulator.step(state, action)
-                for prob, next_state, reward in transitions:
-                    state_index_next = self.states.index(next_state)
-                    total += prob * (reward + self.gamma * self.values[state_index_next])
-                if total > best_action_value:
-                    best_action_value = total
-                    best_action = action
-            self.policy[state] = best_action
 
     def get_policy(self):
+        """
+        Retrieve the computed optimal policy.
+
+        Returns:
+        - dict: a dictionary mapping from states to actions representing the optimal policy
+        """
         return self.policy
-
-class QLearning:
-    def __init__(self, simulator):
-        self.simulator = simulator
-        self.q_table = {}
-
-    def train(self):
-        # Implement Q-learning training logic
-        pass
