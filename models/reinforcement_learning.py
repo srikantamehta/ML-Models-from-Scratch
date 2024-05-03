@@ -102,28 +102,30 @@ class Simulator:
         return (new_x, new_y, vx, vy), -1, False
 
 
-    def simulate_with_policy(self, policy):
+    def simulate_with_policy(self, policy, max_steps=500):
         self.reset()
         state = (self.car.x, self.car.y, 0, 0)
         steps = 0
-        while True:
+        while steps < max_steps:
             action = policy.get(state)
             if action is None:
-                print("No action defined for this state, simulation ends.")
+                # print("No action defined for this state, simulation ends.")
                 return steps  # Return number of steps when no further action is possible
             new_state, reward, is_terminal = self.compute_state_transition(state, action)
-            print(f"Step {steps}: State {state} -> Action {action} -> New State {new_state}, Reward {reward}")
+            # print(f"Step {steps}: State {state} -> Action {action} -> New State {new_state}, Reward {reward}")
             state = new_state
             steps += 1
             if is_terminal:
-                print(f"Simulation ends at state {new_state} after {steps} steps.")
+                # print(f"Simulation ends at state {new_state} after {steps} steps.")
                 return steps  # Ensure this return statement is hit when simulation ends
+        
+        # print(f"Simulation reaches the maximum step limit of {max_steps}.")
+        return steps
 
     def reset(self):
-        # Reset the car to a random starting point when the simulator is reset
         self.start_x, self.start_y = random.choice(self.racetrack.starting_points)
         self.car.x, self.car.y = self.start_x, self.start_y
-        self.car.vx, self.car.vy = 0, 0
+        self.car.vx, self.car.vy = 0, 0  # Reset velocity to zero
         self.running = True
 
     def bresenhams_line_algorithm(self, x0, y0, x1, y1):
@@ -192,6 +194,7 @@ class ValueIteration:
         self.states = list(simulator.transition_table.keys())
         self.V = {state: 0 for state in self.states}  # Value function initialization
         self.policy = {state: None for state in self.states}  # Initial policy
+        self.iterations = 0  # Counter for iterations
 
     def run(self):
         while True:
@@ -201,7 +204,6 @@ class ValueIteration:
                 current_value = self.V[state]
                 for action in self.simulator.transition_table[state]:
                     total = 0
-                    # Adjust here to unpack the third value, is_terminal
                     new_state, reward, is_terminal = self.simulator.transition_table[state][action]
                     if not is_terminal:  # If not a terminal state, proceed with the usual computation
                         total = reward + self.gamma * self.V[new_state]
@@ -212,9 +214,9 @@ class ValueIteration:
                         self.policy[state] = action
                 delta = max(delta, abs(max_value - current_value))
                 self.V[state] = max_value
+            self.iterations += 1  # Increment the iteration counter
             if delta < self.theta:
                 break
-
 
     def get_policy(self):
         """
@@ -224,6 +226,15 @@ class ValueIteration:
         - dict: a dictionary mapping from states to actions representing the optimal policy
         """
         return self.policy
+
+    def get_iterations(self):
+        """
+        Retrieve the number of iterations performed during the value iteration.
+
+        Returns:
+        - int: the number of iterations
+        """
+        return self.iterations
 
 class QLearning:
     def __init__(self, simulator, alpha=0.1, gamma=0.99, epsilon=0.1):
@@ -238,29 +249,52 @@ class QLearning:
         self.actions = list(simulator.transition_table[self.states[0]].keys())
         self.Q = {state: {action: 0 for action in self.actions} for state in self.states}
         
-    def choose_action(self, state):
-        if random.random() < self.epsilon:
+    def choose_action(self, state, episode):
+        exploration_rate = self.epsilon / (episode + 1)  # Decay exploration rate over episodes
+        if random.random() < exploration_rate:
             return random.choice(self.actions)
         else:
             return max(self.Q[state], key=self.Q[state].get)
     
     def update_q(self, state, action, reward, next_state, is_terminal):
         current_q = self.Q[state][action]
-        next_max_q = 0 if is_terminal else max(self.Q[next_state].values())
-        self.Q[state][action] = current_q + self.alpha * (reward + self.gamma * next_max_q - current_q)
+        if is_terminal:
+            target_q = reward
+        else:
+            next_max_q = max(self.Q[next_state].values())  # For Q-learning
+            target_q = reward + self.gamma * next_max_q  # For Q-learning
+            
+        self.Q[state][action] = current_q + self.alpha * (target_q - current_q)
     
     def train(self, num_episodes):
+        iterations = []
+        steps_to_finish = []
+        total_steps_per_episode = []
+
         for episode in range(num_episodes):
             state = (self.simulator.start_x, self.simulator.start_y, 0, 0)
             step = 0
+            episode_steps = 0
+
             while True:
-                action = self.choose_action(state)
+                action = self.choose_action(state, episode)  # Pass the current episode number
                 next_state, reward, is_terminal = self.simulator.compute_state_transition(state, action)
                 self.update_q(state, action, reward, next_state, is_terminal)
                 state = next_state
                 step += 1
-                if is_terminal or step >= 1000:
+                episode_steps += 1
+
+                if is_terminal:
+                    iterations.append(episode + 1)
+                    steps_to_finish.append(step)
                     break
+
+                if step >= 10000:
+                    break
+
+            total_steps_per_episode.append(episode_steps)
+
+        return iterations, steps_to_finish, total_steps_per_episode
     
     def get_policy(self):
         policy = {}
@@ -291,60 +325,54 @@ class SARSA:
         self.actions = list(simulator.transition_table[self.states[0]].keys())
         self.Q = {state: {action: 0 for action in self.actions} for state in self.states}
 
-    def choose_action(self, state):
-        """
-        Choose an action based on the epsilon-greedy strategy.
-        
-        Args:
-        - state (tuple): the current state
-        
-        Returns:
-        - tuple: the chosen action
-        """
-        if random.random() < self.epsilon:
-            # Explore: choose a random action
+    def choose_action(self, state, episode):
+        exploration_rate = self.epsilon / (episode + 1)  # Decay exploration rate over episodes
+        if random.random() < exploration_rate:
             return random.choice(self.actions)
         else:
-            # Exploit: choose the best known action
             return max(self.Q[state], key=self.Q[state].get)
-
-    def update_q(self, state, action, reward, next_state, next_action):
-        """
-        Update the Q-value for the given state-action pair using the SARSA update rule.
         
-        Args:
-        - state (tuple): the current state
-        - action (tuple): the action taken
-        - reward (float): the reward received
-        - next_state (tuple): the next state
-        - next_action (tuple): the next action to be taken
-        """
+    def update_q(self, state, action, reward, next_state, is_terminal,episode):
         current_q = self.Q[state][action]
-        next_q = self.Q[next_state][next_action]
-        # Apply the SARSA update formula
-        self.Q[state][action] = current_q + self.alpha * (reward + self.gamma * next_q - current_q)
-
+        if is_terminal:
+            target_q = reward
+        else:
+            next_action = self.choose_action(next_state, episode)  # Choose the next action here
+            next_q = self.Q[next_state][next_action]  # For SARSA
+            target_q = reward + self.gamma * next_q  # For SARSA
+        self.Q[state][action] = current_q + self.alpha * (target_q - current_q)
+    
     def train(self, num_episodes):
-        """
-        Train the SARSA agent for the specified number of episodes.
-        
-        Args:
-        - num_episodes (int): the number of training episodes
-        """
+        iterations = []
+        steps_to_finish = []
+        total_steps_per_episode = []
+
         for episode in range(num_episodes):
             state = (self.simulator.start_x, self.simulator.start_y, 0, 0)
-            action = self.choose_action(state)
+            action = self.choose_action(state, episode)  # Pass the current episode number
             step = 0
+            episode_steps = 0
+
             while True:
                 next_state, reward, is_terminal = self.simulator.compute_state_transition(state, action)
-                next_action = self.choose_action(next_state)
-                # Update Q-value based on the transition
-                self.update_q(state, action, reward, next_state, next_action)
+                next_action = self.choose_action(next_state,episode)
+                self.update_q(state, action, reward, next_state, is_terminal,episode)
                 state = next_state
                 action = next_action
                 step += 1
-                if is_terminal or step >= 1000:
+                episode_steps += 1
+
+                if is_terminal:
+                    iterations.append(episode + 1)
+                    steps_to_finish.append(step)
                     break
+
+                if step >= 10000:
+                    break
+
+            total_steps_per_episode.append(episode_steps)
+
+        return iterations, steps_to_finish, total_steps_per_episode
     
     def get_policy(self):
         """
